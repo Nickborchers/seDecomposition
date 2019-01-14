@@ -366,7 +366,7 @@ Image* imageUnion(Image* ims, int len){
 }
 
 /* 
- * imageIntersection takes an array of binary images and returns their intersection
+ * imageIntersection takes a pointer of binary images and returns their intersection
  * they are assumed to be of equal size.
 */
 
@@ -387,7 +387,7 @@ void rgbToGrayscale(Image *im){
 	unsigned int pixel;
 	unsigned char *newData = calloc(im->width * im->height, sizeof(unsigned char));
 	for(pixel = 0; pixel < im->width * im->height * im->channels; pixel += 3){
-		newData[pixel/3] = (int) 0.299 * im->data[pixel] + 0.587 *im->data[pixel + 1] + 0.114 * im->data[pixel + 2];
+		newData[pixel/3] = (int) (0.299 * im->data[pixel] + 0.587 *im->data[pixel + 1] + 0.114 * im->data[pixel + 2]);
 	}
 	free(im->data);
 	im->channels = 1;
@@ -408,4 +408,93 @@ void rgbaToGrayscale(Image *im){
 	free(im->data);
 	im->channels = 1;
 	im->data = newData;
+}
+
+Queue *newQueue(){
+	Queue *new;
+	new = malloc(sizeof(Queue));
+	assert(new != NULL);
+	new->head = NULL;
+	new->tail = NULL;
+	new->size = 0;
+	return new;
+}
+
+Node *newNode(CubicFactor c, SparseFactor s){
+	Node *new = malloc(sizeof(Node));
+	assert(new != NULL);
+	new->cubicFactor = c;
+	new->sparseFactor = s;
+	new->next = NULL;
+	return new;
+}
+
+void enqueue(Queue *qp, CubicFactor c, SparseFactor s){
+	Node *new = newNode(c, s);
+	if( qp->size == 0 ){
+		qp->size = 1;
+		qp->head = new;
+		qp->tail = new;
+	}else{ /* qp->size > 0 */
+		qp->tail->next = new;
+		qp->tail = new;
+		qp->size++;
+	}
+}
+
+Node *dequeue(Queue *qp){
+	if( qp->size < 2) return qp->head;
+
+	Node *n = qp->head;
+	qp->head = qp->head->next;
+	qp->size--;
+	if( qp->size == 1) qp->tail = qp->head;
+
+	return n;
+}
+
+/* Find smallest morphological closing without change of the current structuring element,
+	the result is the combination of the cubic and the sparse factor */
+
+Node *smallestMorphClosing(Image *SE){
+	unsigned int pix;
+	int width = SE->width;
+	int height = SE->height;
+	int seSize = width * height;
+	unsigned char *data = SE->data;
+	int cubicFactorTopWidth = 0;
+	int cubicFactorBottomWidth = 0;
+	int cubicFactorRightHeight = 0;
+	int cubicFactorLeftHeight = 0;
+	int sparseX, sparseY;
+
+	for(pix = 0; pix < seSize / 2; pix++ ){ // loop horizontally over SE
+		if( data[pix] == MAX_PIX ) { //Start counting line
+			cubicFactorTopWidth++;
+		}
+		if( cubicFactorTopWidth && data[pix] == MIN_PIX ) break;
+	}
+
+	for(pix = seSize; pix > seSize / 2; pix-- ){ // loop horizontally over SE
+		if( data[pix] == MAX_PIX ) { //Start counting line
+			cubicFactorBottomWidth++;
+		}
+		if( cubicFactorBottomWidth && data[pix] == MIN_PIX ) break;
+	}
+
+
+	for(pix = 0; pix < seSize; pix++ ){ // loop vertically over SE
+		printf("pix: %d\n", pix * width + pix % height);
+		if( data[pix * width + pix % height] == MAX_PIX ) { //Start counting line
+			cubicFactorLeftHeight++;
+		}
+		if( cubicFactorLeftHeight && data[pix * width + pix % height] == MIN_PIX ) break;
+	}
+	printf("CubicFactorTopWidth: %d, CubicFactorBottomWidth: %d\n, CubicFactorLeftHeight: %d, cubicFactorRightHeight: %d\n", 
+		cubicFactorTopWidth, 
+		cubicFactorBottomWidth, 
+		cubicFactorLeftHeight, 
+		cubicFactorRightHeight);
+	//Find sparse factor
+	return NULL;
 }

@@ -9,7 +9,7 @@
 // STBI_rgb        = 3
 // STBI_rgb_alpha  = 4
 
-#define SE_SIZE 3
+#define SE_SIZE 5
 #define GRAYSCALE_TO_BINARY_THRESHOLD 100
 
 int main(int argc, char *argv[]){
@@ -20,22 +20,8 @@ int main(int argc, char *argv[]){
 
 	char *str = argv[1];
 
+	Image *im;
 	// Some examples:
-	Image *im = readImage(str);
-	if( getChannels(im) == 3) rgbToGrayscale(im);
-	if( getChannels(im) == 4) rgbaToGrayscale(im);
-	morphClosing(im, SE_SIZE);
-	morphOpening(im, SE_SIZE);
-	writeImage(im, "closingThenOpening.png");
-	freeImage(im);
-	
-	im = readImage(str);
-	if( getChannels(im) == 3) rgbToGrayscale(im);
-	if( getChannels(im) == 4) rgbaToGrayscale(im);
-	morphOpening(im, SE_SIZE);
-	morphClosing(im, SE_SIZE);
-	writeImage(im, "openingThenClosing.png");
-	freeImage(im);
 
 	im = readImage(str);
 	if( getChannels(im) == 3) rgbToGrayscale(im);
@@ -45,14 +31,12 @@ int main(int argc, char *argv[]){
 	freeImage(im);
 
 
-	im = computeBinaryDiscSE(1000);
+	im = computeBinaryDiscSE(5)	;
+	printBinaryImage(im);
 	writeImage(im, "euclideanSphere.png");
+	smallestMorphClosing(im);
 	free(im);
 	// Image *SE, *CSE, *RSE;
-
-	// Image *se = computeBinaryDiscSE(SE_SIZE);
-	// printBinaryImage(se);
-	// freeImage(se);
 
 	// while(RSE != NULL){
 
