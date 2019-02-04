@@ -72,7 +72,7 @@ unsigned char *dilateRow(unsigned char*, int, unsigned char*, unsigned char*, un
 void rgbToGrayscale(struct Image*);
 void rgbaToGrayscale(struct Image*);
 Queue *newQueue();
-void enqueue(struct Queue*, struct Partition);
+void enqueue(struct Queue*, struct Partition*);
 Partition *dequeue(Queue*);
 struct Image *computeCubicFactor(int, int);
 void removePartition(struct Image*);

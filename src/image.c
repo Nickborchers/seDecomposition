@@ -411,10 +411,7 @@ Queue *newQueue(){
   return new;
 }
 
-void enqueue(Queue *qp, Partition p){
-  Partition *new = malloc(sizeof(struct Partition));
-  new->sparseFactor = p.sparseFactor;
-  new->cubicFactor = p.cubicFactor;
+void enqueue(Queue *qp, Partition *new){
   if( qp->size == 0 ){
     qp->size = 1;
     qp->head = new;
@@ -427,7 +424,10 @@ void enqueue(Queue *qp, Partition p){
 }
 
 Partition *dequeue(Queue *qp){ 
-  if( qp->size < 2) return qp->head;
+  if( qp->size < 2) {
+    qp->size--;
+    return qp->head;
+  }
 
   Partition *n = qp->head;
   qp->head = qp->head->next;
@@ -453,7 +453,7 @@ int isEmptyQueue(Queue *qp){
 /* Find smallest morphological closing without change of the current structuring element,
   the result is the combination of the cubic and the sparse factor */
 
-Partition smallestMorphClosing(Image *SE){
+Partition *smallestMorphClosing(Image *SE){
   Pixel *data = SE->data;
   unsigned int pix;
   int width = SE->width;
@@ -523,11 +523,6 @@ Partition smallestMorphClosing(Image *SE){
     } 
   }
 
-  printRunLength(top);
-  printRunLength(bottom);
-  printRunLength(left);
-  printRunLength(right);
-
   int topLen = top.finish.col - top.start.col;
   int botLen = bottom.start.col - bottom.finish.col;
   int leftLen = left.finish.row - left.start.row;
@@ -541,17 +536,22 @@ Partition smallestMorphClosing(Image *SE){
   c.width = width;
   c.height = height;
 
-  Partition p;
-  p.cubicFactor = c;
+  Partition *p = malloc(sizeof(struct Partition));
+  assert( p != NULL );
+  p->cubicFactor = c;
 
+  //compute distance from middle to edge
+  for(i=0; i < seSize/2; i += width){
+
+  }
   //compute sparse factor 
-  fprintf(stderr, "%d %d %d %d\n", topLen, botLen, leftLen, rightLen);
   SparseFactor s;
-  s.topOffset = topLen / 2 + 1;
-  s.bottomOffset = botLen / 2 + 1;
-  s.leftOffset = leftLen / 2 + 1;
-  s.rightOffset = rightLen / 2 + 1;
-  p.sparseFactor = s;
+  s.topOffset = leftLen / 2 + 1;
+  s.bottomOffset = leftLen / 2 + 1;
+  s.leftOffset = topLen / 2 + 1;
+  s.rightOffset = topLen / 2 + 1;
+  p->sparseFactor = s;
+  if( s.topOffset == 1 ) return NULL;
   return p;
 }
 

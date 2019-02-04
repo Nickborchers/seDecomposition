@@ -24,25 +24,28 @@ int main(int argc, char *argv[]){
   Image *im = readImage(name);
 
   Image *SE, *CSE;
-  Partition p;
+  Partition *p;
   Queue *qp = newQueue();
 
   CSE = computeBinaryDiscSE(SE_SIZE);
   printBinaryImage(CSE);
-  while(CSE != NULL){
+  do{
     p = smallestMorphClosing(CSE);
     enqueue(qp, p);
     removePartition(CSE);
-    break;
-  }
+    fprintf(stderr, "topOffset: %d\n", p->sparseFactor.topOffset);
+    printBinaryImage(CSE);
+  }while( p != NULL);
 
   Partition *partition;
   while(!isEmptyQueue(qp)){
     partition = dequeue(qp);
+    fprintf(stderr, "queuesize: %d\n", qp->size);
     dilation(im, NULL, partition->cubicFactor.width, HORIZONTAL);
     dilation(im, NULL, partition->cubicFactor.height, VERTICAL);
     dilateNaive(im, partition->sparseFactor);
   }
   
+  writeImage(im->data, "output.png");
   return 0;
 }
