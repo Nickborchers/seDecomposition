@@ -11,9 +11,8 @@ make clean && make all && ./sedecomp yourgrayscaleimage.png
 ```
 
 ## 3rd party libraries
- * [stb](https://github.com/nothings/stb) single-file public domain libaries for c/c++
- we used stbi_image_write and stbi_image_read  
+ * [stb](https://github.com/nothings/stb) single-file public domain libaries for c/c++, we use stbi_image_write and stbi_image_read for basic image I/O 
 
 ## Authors
 
-* **Nick Borchers** - *Initial work* - [PurpleBooth](https://github.com/Nickborchers) under the supervision of Dr M.H.F. Wilkinson
+* **Nick Borchers** - *Initial work* - [Nickborchers](https://github.com/Nickborchers) under the supervision of Dr M.H.F. Wilkinson
