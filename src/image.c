@@ -603,3 +603,18 @@ void removePartition(Image *SE){
     if(pix <= width) pix = seSize - width + pix - 1;
   }
 }
+
+void dilateNaive(Image *im, SparseFactor s){
+  int size = im->width * im->height;
+  int width = im->width;
+  int height = im->height;
+  int i;
+  int max = MIN_PIX;
+  for(i = 0; i < size; i++ ){
+    if( i - s.topOffset * width < size && i - s.topOffset * width >= 0 ) max = MAX(im->data[i - s.topOffset * width], max);
+    if( i + s.bottomOffset * width < size && i + s.bottomOffset * width >= 0 ) max = MAX(im->data[i + s.bottomOffset * width], max);
+    if( i -  s.leftOffset < size && i - s.leftOffset >= 0 ) max = MAX(im->data[i - s.topOffset], max);
+    if( i + s.rightOffset < size && i + s.rightOffset >= 0 ) max = MAX(im->data[i + s.rightOffset], max);
+    im->data[i] = max;
+  }
+}

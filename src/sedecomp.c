@@ -21,6 +21,8 @@ int main(int argc, char *argv[]){
 
   char *name = argv[1];
 
+  Image *im = readImage(name);
+
   Image *SE, *CSE;
   Partition p;
   Queue *qp = newQueue();
@@ -31,13 +33,16 @@ int main(int argc, char *argv[]){
     p = smallestMorphClosing(CSE);
     enqueue(qp, p);
     removePartition(CSE);
+    break;
   }
 
   Partition *partition;
   while(!isEmptyQueue(qp)){
     partition = dequeue(qp);
-    
+    dilation(im, NULL, partition->cubicFactor.width, HORIZONTAL);
+    dilation(im, NULL, partition->cubicFactor.height, VERTICAL);
+    dilateNaive(im, partition->sparseFactor);
   }
-
+  
   return 0;
 }

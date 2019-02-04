@@ -77,4 +77,5 @@ Partition *dequeue(Queue*);
 struct Image *computeCubicFactor(int, int);
 void removePartition(struct Image*);
 int isEmpty(struct Queue*);
+void dilateNaive(struct Image*, SparseFactor);
 #endif
