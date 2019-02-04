@@ -4,44 +4,45 @@
 #include <assert.h>
 #include "image.c"
 
+#define SE_SIZE 11
+#define GRAYSCALE_TO_BINARY_THRESHOLD 100
+
 // STBI_grey       = 1
 // STBI_grey_alpha = 2
 // STBI_rgb        = 3
 // STBI_rgb_alpha  = 4
 
-#define SE_SIZE 5
-#define GRAYSCALE_TO_BINARY_THRESHOLD 100
 
 int main(int argc, char *argv[]){
-	if( argc <= 1 ) {
-		printf("Image name not provided in command line, program will now exit.\n");
-		return 0;
-	}
+  if( argc <= 1 ) {
+    printf("Image name not provided in command line, program will now exit.\n");
+    return 0;
+  }
 
-	char *str = argv[1];
+  char *name = argv[1];
 
-	Image *im;
-	// Some examples:
+  Image *im = readImage(name);
 
-	im = readImage(str);
-	if( getChannels(im) == 3) rgbToGrayscale(im);
-	if( getChannels(im) == 4) rgbaToGrayscale(im);
-	grayscaleToBinary(im, GRAYSCALE_TO_BINARY_THRESHOLD);
-	writeImage(im, "grayToBinary.png");
-	freeImage(im);
+  Image *SE, *CSE;
+  Partition p;
+  Queue *qp = newQueue();
 
+  CSE = computeBinaryDiscSE(SE_SIZE);
+  printBinaryImage(CSE);
+  while(CSE != NULL){
+    p = smallestMorphClosing(CSE);
+    enqueue(qp, p);
+    removePartition(CSE);
+    break;
+  }
 
-	im = computeBinaryDiscSE(5)	;
-	printBinaryImage(im);
-	writeImage(im, "euclideanSphere.png");
-	smallestMorphClosing(im);
-	free(im);
-	// Image *SE, *CSE, *RSE;
-
-	// while(RSE != NULL){
-
-	// }
-
-	
-	return 0;
+  Partition *partition;
+  while(!isEmptyQueue(qp)){
+    partition = dequeue(qp);
+    dilation(im, NULL, partition->cubicFactor.width, HORIZONTAL);
+    dilation(im, NULL, partition->cubicFactor.height, VERTICAL);
+    dilateNaive(im, partition->sparseFactor);
+  }
+  
+  return 0;
 }

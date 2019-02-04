@@ -1,44 +1,53 @@
 #ifndef IMAGE
 #define IMAGE
 
+typedef unsigned char Pixel;
+
 typedef struct Image {
 	int width;
 	int height;
 	int channels;
 	int stride;
-	unsigned char *data;
+	Pixel *data;
 }Image;
-
-typedef struct CubicFactor{
-	int width;
-	int height;
-}CubicFactor;
 
 typedef struct Coordinate{
 	int row;
 	int col;
 }Coordinate;
 
+typedef struct RunLength{
+	Coordinate start;
+	Coordinate finish;
+}RunLength;
+
+typedef struct CubicFactor{
+	int width;
+	int height;
+}CubicFactor;
+
 typedef struct SparseFactor{
-	Coordinate coords[4];
-	int len;
+	int topOffset;
+	int bottomOffset;
+	int leftOffset;
+	int rightOffset;
 }SparseFactor;
 
-typedef struct Node {
+typedef struct Partition {
     SparseFactor sparseFactor;
     CubicFactor cubicFactor;
-    struct Node *next;
-} Node;
+    struct Partition *next;
+} Partition;
 
 typedef struct Queue {
-	struct Node *head;
-	struct Node *tail;
+	struct Partition *head;
+	struct Partition *tail;
 	int size;
 } Queue;
 
-Image *createImage(unsigned char*, int, int, int);
-Image *readImage(char*);
-Image *copyImage(struct Image*);
+struct Image *createImage(unsigned char*, int, int, int);
+struct Image *readImage(char*);
+struct Image *copyImage(struct Image*);
 void freeImage(struct Image*);
 unsigned char min(unsigned char, unsigned char);
 unsigned char max(unsigned char, unsigned char);
@@ -56,14 +65,17 @@ void morphOpening(struct Image*, int);
 void morphClosing(struct Image*, int);
 void grayscaleToBinary(struct Image*, int);
 void printBinaryImage(struct Image*);
-Image *computeBinaryDiscSE(int);
-Image *imageUnion(struct Image*, int);
-Image *imageIntersection(struct Image*, int);
+struct Image *computeBinaryDiscSE(int);
+struct Image *imageUnion(struct Image*, int);
+struct Image *imageIntersection(struct Image*, int);
 unsigned char *dilateRow(unsigned char*, int, unsigned char*, unsigned char*, unsigned char*, int);
 void rgbToGrayscale(struct Image*);
 void rgbaToGrayscale(struct Image*);
 Queue *newQueue();
-Node *newNode(struct CubicFactor, struct SparseFactor);
-void enqueue(struct Queue*, struct CubicFactor, struct SparseFactor);
-Node *dequeue(Queue*);
+void enqueue(struct Queue*, struct Partition);
+Partition *dequeue(Queue*);
+struct Image *computeCubicFactor(int, int);
+void removePartition(struct Image*);
+int isEmpty(struct Queue*);
+void dilateNaive(struct Image*, SparseFactor);
 #endif
