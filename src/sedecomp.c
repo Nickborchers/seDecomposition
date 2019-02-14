@@ -4,7 +4,7 @@
 #include <assert.h>
 #include "image.c"
 
-#define SE_SIZE 5
+#define SE_SIZE 27
 #define GRAYSCALE_TO_BINARY_THRESHOLD 100
 
 // STBI_grey       = 1
@@ -50,23 +50,18 @@ int main(int argc, char *argv[]){
     p = dequeue(qp);
     dilation(p->im, NULL, p->cubicFactor.width, HORIZONTAL); //We use van Herk/Gil-Werman for the cubic factors
     dilation(p->im, NULL, p->cubicFactor.height, VERTICAL);
+    dilateNaive(im, p->sparseFactor);
     imageQueueEnqueue(iqp, p->im);
-    // dilateNaive(im, p->sparseFactor);
-    free(p);
   }
 
   Node *n;
+  Node *current = imageQueueDequeue(iqp);
   while( imageQueueSize(iqp) > 0){
     n = imageQueueDequeue(iqp);
-    dilation(p->im, NULL, p->cubicFactor.width, HORIZONTAL); //We use van Herk/Gil-Werman for the cubic factors
-    dilation(p->im, NULL, p->cubicFactor.height, VERTICAL);
-    imageQueueEnqueue(iqp, p->im);
-    // dilateNaive(im, p->sparseFactor);
-    free(p);
+    imageBinaryUnion(current->image, n->image);
+    current = n;
   }
 
-  freeImage(CSE);
-  freeQueue(qp);
-  writeImage(im, "output.png");
+  writeImage(current->image, "output.png");
   return 0;
 }

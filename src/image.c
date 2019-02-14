@@ -362,13 +362,10 @@ Image* imageUnion(Image* ims, int len){
  * they are assumed to be of equal size.
 */
 
-Image* imageUnion(Image* im1, Image *im2, int len){
-  unsigned int i, pix;
-  unsigned int size = ims[0].width * ims[0].height;
-  for(i = 1; i < len; i++){
-    for(pix = 0; pix < size; pix++) ims[0].data[pix] = MAX(ims[0].data[pix], ims[i].data[pix]);
-  }
-  return ims;
+void imageBinaryUnion(Image* im1, Image *im2){
+  unsigned int pix;
+  unsigned int size = im1->width * im1->height;
+  for(pix = 0; pix < size; pix++) im1->data[pix] = MAX(im1->data[pix], im2->data[pix]);
 }
 
 /* 
