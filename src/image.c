@@ -74,9 +74,10 @@ Image *computeBinaryDiscSE(int radius){
 }
 
 void writeImage(Image *im, char *name){
-  if(!stbi_write_png(name, im->width, im->height, im->channels, im->data, im->stride)){
+  if(!stbi_write_png(name, im->width, im->height, im->channels, (unsigned char *) im->data, im->stride)){
     fprintf(stderr, "Writing of image with name: %s failed\n", name);
   }
+  freeImage(im);
 }
 
 void freeImage(Image *im){
@@ -357,6 +358,17 @@ Image* imageUnion(Image* ims, int len){
 }
 
 /* 
+ * imageBinaryUnion takes two binary images and returns their union
+ * they are assumed to be of equal size.
+*/
+
+void imageBinaryUnion(Image* im1, Image *im2){
+  unsigned int pix;
+  unsigned int size = im1->width * im1->height;
+  for(pix = 0; pix < size; pix++) im1->data[pix] = MAX(im1->data[pix], im2->data[pix]);
+}
+
+/* 
  * imageIntersection takes a pointer of binary images and returns their intersection
  * they are assumed to be of equal size.
 */
@@ -411,6 +423,14 @@ Queue *newQueue(){
   return new;
 }
 
+int queueSize(Queue *qp){
+	return qp->size;
+}
+
+void freeQueue(Queue *qp){
+	free(qp);
+}
+
 void enqueue(Queue *qp, Partition *new){
   if( qp->size == 0 ){
     qp->size = 1;
@@ -437,6 +457,10 @@ Partition *dequeue(Queue *qp){
   return n;
 }
 
+void setImage(Partition *p, Image *im){
+	p->im = im;
+}
+
 void printCoordinate(Coordinate c){
   printf("Coordinate: row: %d, col: %d\n", c.row, c.col);
 }
@@ -448,6 +472,48 @@ void printRunLength(RunLength r){
 
 int isEmptyQueue(Queue *qp){
   return qp-> size < 1;
+}
+
+ImageQueue *newImageQueue(){
+  ImageQueue *new;
+  new = malloc(sizeof(struct ImageQueue));
+  assert(new != NULL);
+  new->head = NULL;
+  new->tail = NULL;
+  new->size = 0;
+  return new;
+}
+
+void imageQueueEnqueue(ImageQueue *qp, Image *im){
+	Node *new = malloc(sizeof(struct Node));
+	new->image = im;
+	if( qp->size == 0 ){
+    qp->size = 1;
+    qp->head = new;
+    qp->tail = new;
+  }else{ /* qp->size > 0 */
+    qp->tail->next = new;
+    qp->tail = new;
+    qp->size++;
+  }
+}
+
+Node *imageQueueDequeue(ImageQueue *qp){
+	 if( qp->size < 2) {
+    qp->size--;
+    return qp->head;
+  }
+
+  Node *n = qp->head;
+  qp->head = qp->head->next;
+  qp->size--;
+  if( qp->size == 1) qp->tail = qp->head;
+
+  return n;
+}
+
+int imageQueueSize(ImageQueue *qp){
+	return qp->size;
 }
 
 /* Find smallest morphological closing without change of the current structuring element,
@@ -530,28 +596,42 @@ Partition *smallestMorphClosing(Image *SE){
 
   if( topLen != botLen && leftLen != rightLen ){
     fprintf(stderr, "Non-symmetrical SE\n");
+    return NULL;
   }
 
   CubicFactor c;
-  c.width = width;
-  c.height = height;
+  c.width = topLen;
+  c.height = botLen;
 
   Partition *p = malloc(sizeof(struct Partition));
   assert( p != NULL );
   p->cubicFactor = c;
 
-  //compute distance from middle to edge
-  for(i=0; i < seSize/2; i += width){
-
+  int yOffset, xOffset;
+  //compute distance from top/bottom to middle, we know the SE is symmetrical
+  for( int i = width/2; i < seSize/2; i += width){
+  	if( data[i] == MAX_PIX){
+  		yOffset = (width * height/2 - i ) / width;
+  		fprintf(stderr, "yOffset: %d\n", yOffset);
+  		break;
+  	}
   }
+  // Compute distance from left/right to midde, we know the SE is symmetrical
+  for( int i = width * height / 2 - width/2; i < seSize; i++){
+  	if( data[i] == MAX_PIX){
+  		xOffset = (width * height / 2) - i;
+  		fprintf(stderr, "yOffset: %d\n", xOffset);
+  		break;
+  	}
+  }
+
   //compute sparse factor 
   SparseFactor s;
-  s.topOffset = leftLen / 2 + 1;
-  s.bottomOffset = leftLen / 2 + 1;
-  s.leftOffset = topLen / 2 + 1;
-  s.rightOffset = topLen / 2 + 1;
+  s.topOffset = yOffset;
+  s.bottomOffset = yOffset;
+  s.leftOffset = xOffset;
+  s.rightOffset = xOffset;
   p->sparseFactor = s;
-  if( s.topOffset == 1 ) return NULL;
   return p;
 }
 
@@ -607,14 +687,17 @@ void removePartition(Image *SE){
 void dilateNaive(Image *im, SparseFactor s){
   int size = im->width * im->height;
   int width = im->width;
-  int height = im->height;
   int i;
   int max = MIN_PIX;
   for(i = 0; i < size; i++ ){
-    if( i - s.topOffset * width < size && i - s.topOffset * width >= 0 ) max = MAX(im->data[i - s.topOffset * width], max);
-    if( i + s.bottomOffset * width < size && i + s.bottomOffset * width >= 0 ) max = MAX(im->data[i + s.bottomOffset * width], max);
-    if( i -  s.leftOffset < size && i - s.leftOffset >= 0 ) max = MAX(im->data[i - s.topOffset], max);
-    if( i + s.rightOffset < size && i + s.rightOffset >= 0 ) max = MAX(im->data[i + s.rightOffset], max);
+    if( i - s.topOffset * width < size && i - s.topOffset * width >= 0 ) //bounds checking
+    	max = MAX(im->data[i - s.topOffset * width], max);
+    if( i + s.bottomOffset * width < size && i + s.bottomOffset * width >= 0 ) 
+    	max = MAX(im->data[i + s.bottomOffset * width], max);
+    if( i -  s.leftOffset < size && i - s.leftOffset >= 0 ) 
+    	max = MAX(im->data[i - s.topOffset], max);
+    if( i + s.rightOffset < size && i + s.rightOffset >= 0 ) 
+    	max = MAX(im->data[i + s.rightOffset], max);
     im->data[i] = max;
   }
 }
