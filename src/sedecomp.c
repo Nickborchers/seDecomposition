@@ -4,7 +4,7 @@
 #include <assert.h>
 #include "image.c"
 
-#define SE_SIZE 11
+#define SE_SIZE 5
 #define GRAYSCALE_TO_BINARY_THRESHOLD 100
 
 // STBI_grey       = 1
@@ -23,7 +23,7 @@ int main(int argc, char *argv[]){
 
   Image *im = readImage(name);
 
-  Image *SE, *CSE;
+  Image *CSE;
   Partition *p;
   Queue *qp = newQueue();
 
@@ -31,21 +31,42 @@ int main(int argc, char *argv[]){
   printBinaryImage(CSE);
   do{
     p = smallestMorphClosing(CSE);
+    if( p == NULL ) {
+      fprintf(stderr, "Something went wrong while partitioning\n");
+      exit(-1);
+    }
+    setImage(p, copyImage(im));
     enqueue(qp, p);
     removePartition(CSE);
-    fprintf(stderr, "topOffset: %d\n", p->sparseFactor.topOffset);
     printBinaryImage(CSE);
+    if(p->sparseFactor.topOffset ==  1 && p->sparseFactor.leftOffset == 1 ) break;
   }while( p != NULL);
 
-  Partition *partition;
-  while(!isEmptyQueue(qp)){
-    partition = dequeue(qp);
-    fprintf(stderr, "queuesize: %d\n", qp->size);
-    dilation(im, NULL, partition->cubicFactor.width, HORIZONTAL);
-    dilation(im, NULL, partition->cubicFactor.height, VERTICAL);
-    dilateNaive(im, partition->sparseFactor);
+  fprintf(stderr, "queuesize: %d\n", qp->size);
+
+  ImageQueue *iqp;
+  iqp = newImageQueue();
+  while( queueSize(qp) ){
+    p = dequeue(qp);
+    dilation(p->im, NULL, p->cubicFactor.width, HORIZONTAL); //We use van Herk/Gil-Werman for the cubic factors
+    dilation(p->im, NULL, p->cubicFactor.height, VERTICAL);
+    imageQueueEnqueue(iqp, p->im);
+    // dilateNaive(im, p->sparseFactor);
+    free(p);
   }
-  
-  writeImage(im->data, "output.png");
+
+  Node *n;
+  while( imageQueueSize(iqp) > 0){
+    n = imageQueueDequeue(iqp);
+    dilation(p->im, NULL, p->cubicFactor.width, HORIZONTAL); //We use van Herk/Gil-Werman for the cubic factors
+    dilation(p->im, NULL, p->cubicFactor.height, VERTICAL);
+    imageQueueEnqueue(iqp, p->im);
+    // dilateNaive(im, p->sparseFactor);
+    free(p);
+  }
+
+  freeImage(CSE);
+  freeQueue(qp);
+  writeImage(im, "output.png");
   return 0;
 }

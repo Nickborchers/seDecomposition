@@ -4,46 +4,58 @@
 typedef unsigned char Pixel;
 
 typedef struct Image {
-	int width;
-	int height;
-	int channels;
-	int stride;
-	Pixel *data;
+  int width;
+  int height;
+  int channels;
+  int stride;
+  Pixel *data;
 }Image;
 
 typedef struct Coordinate{
-	int row;
-	int col;
+  int row;
+  int col;
 }Coordinate;
 
 typedef struct RunLength{
-	Coordinate start;
-	Coordinate finish;
+  Coordinate start;
+  Coordinate finish;
 }RunLength;
 
 typedef struct CubicFactor{
-	int width;
-	int height;
+  int width;
+  int height;
 }CubicFactor;
 
 typedef struct SparseFactor{
-	int topOffset;
-	int bottomOffset;
-	int leftOffset;
-	int rightOffset;
+  int topOffset;
+  int bottomOffset;
+  int leftOffset;
+  int rightOffset;
 }SparseFactor;
 
 typedef struct Partition {
-    SparseFactor sparseFactor;
-    CubicFactor cubicFactor;
-    struct Partition *next;
+  SparseFactor sparseFactor;
+  CubicFactor cubicFactor;
+  struct Partition *next;
+  Image *im;
 } Partition;
 
 typedef struct Queue {
-	struct Partition *head;
-	struct Partition *tail;
-	int size;
+  struct Partition *head;
+  struct Partition *tail;
+  unsigned int size;
 } Queue;
+
+typedef struct Node{
+  struct Image *image;
+  struct Node *next;
+} Node;
+
+typedef struct ImageQueue{
+  struct Node *head;
+  struct Node *tail;
+  unsigned int size;
+}ImageQueue;
 
 struct Image *createImage(unsigned char*, int, int, int);
 struct Image *readImage(char*);
