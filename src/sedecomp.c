@@ -30,12 +30,11 @@ int main(int argc, char *argv[]){
   CSE = computeBinaryDiscSE(SE_SIZE);
   printBinaryImage(CSE);
   do{
-    p = smallestMorphClosing(CSE);
+    p = smallestMorphOpening(CSE);
     if( p == NULL ) {
       fprintf(stderr, "Something went wrong while partitioning\n");
       exit(-1);
     }
-    setImage(p, copyImage(im));
     enqueue(qp, p);
     removePartition(CSE);
     printBinaryImage(CSE);
@@ -43,25 +42,5 @@ int main(int argc, char *argv[]){
   }while( p != NULL);
 
   fprintf(stderr, "queuesize: %d\n", qp->size);
-
-  ImageQueue *iqp;
-  iqp = newImageQueue();
-  while( queueSize(qp) ){
-    p = dequeue(qp);
-    dilation(p->im, NULL, p->cubicFactor.width, HORIZONTAL); //We use van Herk/Gil-Werman for the cubic factors
-    dilation(p->im, NULL, p->cubicFactor.height, VERTICAL);
-    dilateNaive(im, p->sparseFactor);
-    imageQueueEnqueue(iqp, p->im);
-  }
-
-  Node *n;
-  Node *current = imageQueueDequeue(iqp);
-  while( imageQueueSize(iqp) > 0){
-    n = imageQueueDequeue(iqp);
-    imageBinaryUnion(current->image, n->image);
-    current = n;
-  }
-
-  writeImage(current->image, "output.png");
   return 0;
 }

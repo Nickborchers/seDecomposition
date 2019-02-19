@@ -37,7 +37,6 @@ typedef struct Partition {
   SparseFactor sparseFactor;
   CubicFactor cubicFactor;
   struct Partition *next;
-  Image *im;
 } Partition;
 
 typedef struct Queue {
@@ -45,17 +44,6 @@ typedef struct Queue {
   struct Partition *tail;
   unsigned int size;
 } Queue;
-
-typedef struct Node{
-  struct Image *image;
-  struct Node *next;
-} Node;
-
-typedef struct ImageQueue{
-  struct Node *head;
-  struct Node *tail;
-  unsigned int size;
-}ImageQueue;
 
 struct Image *createImage(unsigned char*, int, int, int);
 struct Image *readImage(char*);
@@ -69,17 +57,17 @@ int getWidth(struct Image*);
 int getHeight(struct Image*);
 int getChannels(struct Image*);
 unsigned char *getData(struct Image*);
-unsigned char *dilate(unsigned char*, int, unsigned char*, unsigned char*, unsigned char*, int);
-unsigned char *erode(unsigned char*, int, unsigned char*, unsigned char*, unsigned char*, int);
-void dilation(struct Image*, unsigned char*, int, int);
-void erosion(struct Image*, unsigned char*, int, int);
-void morphOpening(struct Image*, int);
-void morphClosing(struct Image*, int);
+unsigned char *dilate(unsigned char*, int, unsigned char*, unsigned char*, int);
+unsigned char *erode(unsigned char*, int, unsigned char*, unsigned char*, int);
+void dilation(struct Image*, int, int);
+void erosion(struct Image*, int, int);
+void morphOpening(struct Image*, int, int);
+void morphClosing(struct Image*, int, int);
 void grayscaleToBinary(struct Image*, int);
 void printBinaryImage(struct Image*);
 struct Image *computeBinaryDiscSE(int);
-struct Image *imageUnion(struct Image*, int);
-struct Image *imageIntersection(struct Image*, int);
+void imageUnion(struct Image*, int);
+void imageIntersection(struct Image*, int);
 unsigned char *dilateRow(unsigned char*, int, unsigned char*, unsigned char*, unsigned char*, int);
 void rgbToGrayscale(struct Image*);
 void rgbaToGrayscale(struct Image*);
@@ -90,4 +78,5 @@ struct Image *computeCubicFactor(int, int);
 void removePartition(struct Image*);
 int isEmpty(struct Queue*);
 void dilateNaive(struct Image*, SparseFactor);
+Partition *smallestMorphOpening(struct Image*);
 #endif
