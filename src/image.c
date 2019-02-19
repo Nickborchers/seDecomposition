@@ -13,11 +13,28 @@
 
 #define MAX_THREAD_NUM 4
 
-#define DEFAULT_STRIDE 0 //works for all PNGs up until now
+#define DEFAULT_STRIDE 0
 #define DEFAULT_CHANNELS 1
 
 #define MAX(a,b)  (((a)>(b)) ? (a):(b))
 #define MIN(a,b)  (((a)<(b)) ? (a):(b))
+
+#define RGB_RED 0.299
+#define RGB_GREEN 0.587
+#define RGB_BLUE 0.114
+
+/*
+ * Function:  createImage 
+ * --------------------
+ *  allocates and initializes a new Image object
+ *
+ *  data: a pointer to the block of pixel data
+ *  width: the width of the image
+ *  height: the height of the image
+ *	channels: the amount of channels for the image (specified in stbi_image_write.h, from line 78)
+ * 
+ *  returns: a pointer to the new Image object
+ */
 
 Image *createImage(Pixel *data, int width, int height, int channels){
   Image *new = malloc(sizeof(struct Image));
@@ -29,6 +46,16 @@ Image *createImage(Pixel *data, int width, int height, int channels){
   new->data = data;
   return new;
 }
+
+/*
+ * Function:  readImage 
+ * --------------------
+ *  reads a new image from the file system
+ *
+ *  str: the name of the image to be read, it has to be a .png file
+ *
+ *  returns: a pointer to the new Image object
+ */
 
 Image *readImage(char *str){
   int width, height, channels;
@@ -46,6 +73,16 @@ Image *readImage(char *str){
   return createImage(data, width, height, channels);
 }
 
+/*
+ * Function:  copyImage 
+ * --------------------
+ *  copies the pixeldata and metadata of an image to a new Image object
+ *
+ *  im: a pointer to the image to be copied
+ *
+ *  returns: a pointer to the new Image object
+ */
+
 Image *copyImage(Image *im){
   unsigned int i;
   Pixel *data = malloc(im->width * im->height * im->channels * sizeof(struct Image));
@@ -55,6 +92,16 @@ Image *copyImage(Image *im){
     data[i] = im->data[i];
   return cpy;
 }
+
+/*
+ * Function:  computeBinaryDiscSE 
+ * --------------------
+ *  creates a new image object containing a disc-shaped structuring element
+ *
+ *  radius: the radius of the disc structuring element
+ *
+ *  returns: a pointer to the new Image object
+ */
 
 Image *computeBinaryDiscSE(int radius){
   int i, j, euclideanDistance;
@@ -73,6 +120,15 @@ Image *computeBinaryDiscSE(int radius){
   return SE;
 }
 
+/*
+ * Function:  writeImage 
+ * --------------------
+ *  writes an image to the file system
+ *
+ *  str: the name of the image to be read, it has to be a .png file
+ *
+ */
+
 void writeImage(Image *im, char *name){
   if(!stbi_write_png(name, im->width, im->height, im->channels, (unsigned char *) im->data, im->stride)){
     fprintf(stderr, "Writing of image with name: %s failed\n", name);
@@ -80,43 +136,127 @@ void writeImage(Image *im, char *name){
   freeImage(im);
 }
 
+/*
+ * Function:  freeImage 
+ * --------------------
+ *  frees the pixeldata and image metadata
+ *
+ *  im: a pointer to the image to be freed
+ *
+ */
+
 void freeImage(Image *im){
   stbi_image_free(im->data);
   free(im);
 }
+
+/*
+ * Function:  getWidth 
+ * --------------------
+ *  returns the width of an image 
+ *
+ *  im: a pointer to the image
+ *
+ *  returns: the width of the image
+ */
 
 int getWidth(Image *im){
   if( im != NULL ) return im->width;
   return 0;
 }
 
+/*
+ * Function:  getHeight 
+ * --------------------
+ *  returns the height of an image 
+ *
+ *  im: a pointer to the image
+ *
+ *  returns: the height of the image
+ */
+
 int getHeight(Image *im){
   if( im != NULL ) return im->height;
   return 0;
 }
-
+/*
+ * Function:  getChannels 
+ * --------------------
+ *  returns the channels of an image 
+ *
+ *  im: a pointer to the image
+ *
+ *  returns: the channels of the image
+ */
 int getChannels(Image *im){
   if( im != NULL) return im->channels;
   return 0;
 }
 
+/*
+ * Function:  getData 
+ * --------------------
+ *  returns a pointer to the pixeldata of an image
+ *
+ *  im: a pointer to the image
+ *
+ *  returns: the pixeldata of the image
+ */
+
 Pixel *getData(Image *im){
-  return im->data;
+	if( im != NULL) return im->data;
+	return NULL;
 }
+
+/*
+ * Function:  getPixel 
+ * --------------------
+ *  returns the value of pixel at row row and column column
+ *
+ *  im: a pointer to the image
+ *  row: the row of the pixel
+ *  column: the column of the pixel
+ *
+ *  returns: the value of the pixel
+ */
 
 Pixel getPixel(Image *im, int row, int column){
   return im->data[row*im->height + column];
 }
 
+/*
+ * Function:  setPixel 
+ * --------------------
+ *  sets the value of pixel at row row and column column
+ *
+ *  im: a pointer to the image
+ *  row: the row of the pixel
+ *  column: the column of the pixel
+ *
+ */
+
 void setPixel(Image *im, int row, int column, Pixel val){
   im->data[row*im->height + column] = val;
 }
+
+/*
+ * Function:  dilate 
+ * --------------------
+ *  computes the dilation of row/column a with a structuring element size s using the HGW algorithm
+ * 
+ *  a: the pixeldata
+ *  n: the size of the pixeldata
+ *  c: the 'left' buffer
+ *  d: the 'right' buffer 
+ *  s: the size of the structuring element
+ *
+ *  returns: a pointer to the dilated pixeldata
+ */
 
 Pixel *dilate(Pixel *a, 
         int n,
         Pixel *c,
         Pixel *d,
-        Pixel *se, 
         int s
         ){
   int u, i;
@@ -146,9 +286,18 @@ Pixel *dilate(Pixel *a,
   return b;
 }
 
-//negating the existence of channels:
-void dilation(Image *im, 
-        Pixel *se,
+/*
+ * Function: dilation 
+ * --------------------
+ *  computes the dilation of an image im
+ * 
+ *  im: the image to be dilated
+ *  s: the size of the structuring element in direction direction
+ *  direction: in what direction to treat the pixeldata (HORIZONTAL/VERTICAL)
+ *
+ */
+
+void dilation(Image *im,
         int s,
         int direction){
 
@@ -169,7 +318,7 @@ void dilation(Image *im,
       assert(c != NULL);
       assert(d != NULL);
 
-      /* Fill buffer with data from original array */
+      /* Fill buffer with data */
       #pragma omp critical
       { 
         if( direction == HORIZONTAL ){
@@ -182,7 +331,7 @@ void dilation(Image *im,
           }
         }
       }
-      result = dilate(b, n, c, d, NULL, s);
+      result = dilate(b, n, c, d, s);
       free(b);
       free(c);
       free(d);
@@ -206,11 +355,24 @@ void dilation(Image *im,
   }
 }
 
+/*
+ * Function:  erode 
+ * --------------------
+ *  computes the erosion of row/column a with a structuring element size s using the HGW algorithm
+ * 
+ *  a: the pixeldata
+ *  n: the size of the pixeldata
+ *  c: the 'left' buffer
+ *  d: the 'right' buffer 
+ *  s: the size of the structuring element
+ *
+ *  returns: a pointer to the eroded pixeldata
+ */
+
 Pixel *erode(Pixel *a, 
         int n,
         Pixel *c,
         Pixel *d,
-        Pixel *se, 
         int s){
   int u, i;
   int l = s/2;
@@ -237,8 +399,18 @@ Pixel *erode(Pixel *a,
   return b;
 }
 
-void erosion(Image *im, 
-      Pixel *se,
+/*
+ * Function: erosion 
+ * --------------------
+ *  computes the erosion of an image im
+ * 
+ *  im: the image to be dilated
+ *  s: the size of the structuring element in direction direction
+ *  direction: in what direction to treat the pixeldata (HORIZONTAL/VERTICAL)
+ *
+ */
+
+void erosion(Image *im,
       int s,
       int direction){
 
@@ -273,7 +445,7 @@ void erosion(Image *im,
           }
         }
       }
-      result = erode(b, n, c, d, NULL, s);
+      result = erode(b, n, c, d, s);
       free(b);
       free(c);
       free(d);
@@ -296,39 +468,67 @@ void erosion(Image *im,
   }
 }
 
-
 /*
- * morphClosing takes an image and a structuring element size and computes the morphological opening of 
- * that image with a structuring element of dimensions: seSize * seSize
+ * Function: morphOpening 
+ * --------------------
+ *  takes an image and a structuring element size and computes the morphological opening of 
+ *  that image with a structuring element of dimensions: horizontalSize * verticalSize
+ * 
+ *  im: the image to be morph opened
+ *  horizontalSize: the size of the structuring element in the horizontal direction
+ *  verticalSize: the size of the structuring element in the vertical direction
+ * 
  */
 
-void morphOpening(Image *im, int seSize){
-  erosion(im, NULL, seSize, HORIZONTAL);
-  erosion(im, NULL, seSize, VERTICAL);
-  dilation(im, NULL, seSize, HORIZONTAL);
-  dilation(im, NULL, seSize, VERTICAL);
+void morphOpening(Image *im, int horizontalSize, int verticalSize){
+  erosion(im, horizontalSize, HORIZONTAL);
+  erosion(im, verticalSize, VERTICAL);
+  dilation(im, horizontalSize, HORIZONTAL);
+  dilation(im, verticalSize, VERTICAL);
 }
 
 /*
- * morphClosing takes an image and a structuring element size and computes the morphological closing of 
- * that image with a structuring element of dimensions: seSize * seSize
+ * Function: morphClosing 
+ * --------------------
+ *  takes an image and a structuring element size and computes the morphological opening of 
+ *  that image with a structuring element of dimensions: horizontalSize * verticalSize
+ * 
+ *  im: the image to be morph closed
+ *  horizontalSize: the size of the structuring element in the horizontal direction
+ *  verticalSize: the size of the structuring element in the vertical direction
+ * 
  */
 
-void morphClosing(Image *im, int seSize){
-  dilation(im, NULL, seSize, HORIZONTAL);
-  dilation(im, NULL, seSize, VERTICAL);
-  erosion(im, NULL, seSize, HORIZONTAL);
-  erosion(im, NULL, seSize, VERTICAL);
+void morphClosing(Image *im,  int horizontalSize, int verticalSize){
+  dilation(im, horizontalSize, HORIZONTAL);
+  dilation(im, verticalSize, VERTICAL);
+  erosion(im, horizontalSize, HORIZONTAL);
+  erosion(im, verticalSize, VERTICAL);
 }
+
+/*
+ * Function: grayscaleToBinary 
+ * --------------------
+ *  converts a grayscale image to a binary one according to a threshold
+ * 
+ *  threshold: the threshold to compare the pixel value with
+ * 
+ */
 
 void grayscaleToBinary(Image *im, int threshold){
   unsigned int i = 0;
-  for(i = 0; i < im->width * im->height * im->channels; i++)  im->data[i] = (im->data[i] < threshold ) ? MIN_PIX : MAX_PIX;
+  for(i = 0; i < im->width * im->height * im->channels; i++)  
+  	im->data[i] = (im->data[i] < threshold ) ? MIN_PIX : MAX_PIX;
 }
 
 /*
- * prints a binary image in terminal: if pixel is 0 then print 0 otherwise 1
-*/
+ * Function: printBinaryImage 
+ * --------------------
+ *  prints a binary image to stdout
+ * 
+ *  im: the image to be printed
+ * 
+ */
 
 void printBinaryImage(Image *im){
   unsigned int i = 0;
@@ -343,54 +543,81 @@ void printBinaryImage(Image *im){
   printf("\n");
 }
 
-/* 
- * imageUnion takes an array of binary images and returns their union
- * they are assumed to be of equal size.
-*/
+/*
+ * Function: imageUnion 
+ * --------------------
+ *  
+ *  computes the union of an array of images
+ * 
+ *  ims: a pointer to a block of images, size has to be >= 2
+ *  len: the length of the block of images, has to be >= 2
+ * 
+ */
 
-Image* imageUnion(Image* ims, int len){
+void imageUnion(Image* ims, int len){
   unsigned int i, pix;
   unsigned int size = ims[0].width * ims[0].height;
   for(i = 1; i < len; i++){
-    for(pix = 0; pix < size; pix++) ims[0].data[pix] = MAX(ims[0].data[pix], ims[i].data[pix]);
+    for(pix = 0; pix < size; pix++) 
+    	ims[0].data[pix] = MAX(ims[0].data[pix], ims[i].data[pix]);
   }
-  return ims;
 }
 
-/* 
- * imageBinaryUnion takes two binary images and returns their union
- * they are assumed to be of equal size.
-*/
+/*
+ * Function: imageBinaryUnion 
+ * --------------------
+ *  returns the union of images im1 and im2, they are assumed to be of equal
+ *  size
+ * 
+ *  im1: the first image
+ *  im2: the second image
+ * 
+ */
 
 void imageBinaryUnion(Image* im1, Image *im2){
   unsigned int pix;
   unsigned int size = im1->width * im1->height;
-  for(pix = 0; pix < size; pix++) im1->data[pix] = MAX(im1->data[pix], im2->data[pix]);
-}
-
-/* 
- * imageIntersection takes a pointer of binary images and returns their intersection
- * they are assumed to be of equal size.
-*/
-
-Image* imageIntersection(Image* ims, int len){
-  unsigned int i, pix;
-  unsigned int size = ims[0].width * ims[0].height;
-  for(i = 1; i < len; i++){
-    for(pix = 0; pix < size; pix++) ims[0].data[pix] = MIN(ims[0].data[pix], ims[i].data[pix]);
-  }
-  return ims;
+  for(pix = 0; pix < size; pix++) 
+  	im1->data[pix] = MAX(im1->data[pix], im2->data[pix]);
 }
 
 /*
- * Converts an image with 3 channels to an image with 1 channel
-*/
+ * Function: imageIntersection 
+ * --------------------
+ *  
+ *  computes the intersection of an array of images
+ * 
+ *  ims: a pointer to a block of images, size has to be >= 2
+ *  len: the length of the block of images, has to be >= 2
+ * 
+ */
+
+void imageIntersection(Image* ims, int len){
+  unsigned int i, pix;
+  unsigned int size = ims[0].width * ims[0].height;
+  for(i = 1; i < len; i++){
+    for(pix = 0; pix < size; pix++) 
+    	ims[0].data[pix] = MIN(ims[0].data[pix], ims[i].data[pix]);
+  }
+}
+
+/*
+ * Function: rgbToGrayscale 
+ * --------------------
+ *  
+ *  converts an rgb image to grayscale
+ * 
+ *  im: a pointer to the image
+ * 
+ */
 
 void rgbToGrayscale(Image *im){
   unsigned int pixel;
   Pixel *newData = calloc(im->width * im->height, sizeof(unsigned char));
   for(pixel = 0; pixel < im->width * im->height * im->channels; pixel += 3){
-    newData[pixel/3] = (int) (0.299 * im->data[pixel] + 0.587 *im->data[pixel + 1] + 0.114 * im->data[pixel + 2]);
+    newData[pixel/3] = (int) (RGB_RED * im->data[pixel] 
+    													+ RGB_GREEN *im->data[pixel + 1] 
+    													+ RGB_BLUE * im->data[pixel + 2]);
   }
   free(im->data);
   im->channels = 1;
@@ -398,20 +625,37 @@ void rgbToGrayscale(Image *im){
 }
 
 /*
- * Converts an image with 3 channels to an image with 1 channel
-*/
+ * Function: rgbaToGrayscale 
+ * --------------------
+ *  
+ *  converts an rgba image to grayscale
+ * 
+ *  im: a pointer to the image
+ * 
+ */
 
 void rgbaToGrayscale(Image *im){
   unsigned int pixel;
   Pixel *newData = calloc(im->width * im->height, sizeof(Pixel));
   for(pixel = 0; pixel < im->width * im->height * im->channels; pixel += 4){
-    newData[pixel/4] = (int) (0.299 * im->data[pixel] + 0.587 *im->data[pixel + 1] + 0.114 * im->data[pixel + 2]);
+    newData[pixel/4] = (int) (RGB_RED * im->data[pixel] 
+    													+ RGB_GREEN *im->data[pixel + 1] 
+    													+ RGB_BLUE * im->data[pixel + 2]);
     if(im->data[pixel+3] == 0) newData[pixel/4] = MAX_PIX;
   }
   free(im->data);
   im->channels = 1;
   im->data = newData;
 }
+
+/*
+ * Function: newQueue 
+ * --------------------
+ *  
+ *  Allocates and initializes a new queue
+ * 
+ *  returns: a pointer to the new queue
+ */
 
 Queue *newQueue(){
   Queue *new;
@@ -423,13 +667,45 @@ Queue *newQueue(){
   return new;
 }
 
+/*
+ * Function: queueSize 
+ * --------------------
+ *  
+ *  returns the size of Queue qp 
+ * 
+ *  qp: a pointer to the queue
+ * 
+ */
+
 int queueSize(Queue *qp){
-	return qp->size;
+	if(qp != NULL) return qp->size;
+	return -1;
 }
+
+/*
+ * Function: freeQueue 
+ * --------------------
+ *  
+ *  frees the queue qp
+ * 
+ *  qp: a pointer to the queue
+ * 
+ */
 
 void freeQueue(Queue *qp){
 	free(qp);
 }
+
+/*
+ * Function: enqueue 
+ * --------------------
+ *  
+ *  enqueues a partition new in queue qp 
+ * 
+ *  qp: a pointer to the queue
+ *  new: the new partition to be inserted
+ * 
+ */
 
 void enqueue(Queue *qp, Partition *new){
   if( qp->size == 0 ){
@@ -442,6 +718,17 @@ void enqueue(Queue *qp, Partition *new){
     qp->size++;
   }
 }
+
+/*
+ * Function: dequeue 
+ * --------------------
+ *  
+ *  dequeues a partition from queue qp 
+ * 
+ *  qp: a pointer to the queue
+ *
+ *  returns: a pointer to the dequeued partition 
+ */
 
 Partition *dequeue(Queue *qp){ 
   if( qp->size < 2) {
@@ -457,69 +744,24 @@ Partition *dequeue(Queue *qp){
   return n;
 }
 
-void setImage(Partition *p, Image *im){
-	p->im = im;
-}
-
-void printCoordinate(Coordinate c){
-  printf("Coordinate: row: %d, col: %d\n", c.row, c.col);
-}
-
-void printRunLength(RunLength r){
-  printCoordinate(r.start);
-  printCoordinate(r.finish);
-}
-
 int isEmptyQueue(Queue *qp){
-  return qp-> size < 1;
+  if(qp != NULL) return qp->size < 1;
+  return -1;
 }
 
-ImageQueue *newImageQueue(){
-  ImageQueue *new;
-  new = malloc(sizeof(struct ImageQueue));
-  assert(new != NULL);
-  new->head = NULL;
-  new->tail = NULL;
-  new->size = 0;
-  return new;
-}
+/*
+ * Function: smallestMorphOpening
+ * --------------------
+ *  
+ *  finds the smallest cube that SE can be morphologically opened without 
+ *  change
+ * 
+ *  SE: the structuring element to be decomposed
+ * 
+ *  returns: a partition containing the cubic and sparse factor
+ */
 
-void imageQueueEnqueue(ImageQueue *qp, Image *im){
-	Node *new = malloc(sizeof(struct Node));
-	new->image = im;
-	if( qp->size == 0 ){
-    qp->size = 1;
-    qp->head = new;
-    qp->tail = new;
-  }else{ /* qp->size > 0 */
-    qp->tail->next = new;
-    qp->tail = new;
-    qp->size++;
-  }
-}
-
-Node *imageQueueDequeue(ImageQueue *qp){
-	 if( qp->size < 2) {
-    qp->size--;
-    return qp->head;
-  }
-
-  Node *n = qp->head;
-  qp->head = qp->head->next;
-  qp->size--;
-  if( qp->size == 1) qp->tail = qp->head;
-
-  return n;
-}
-
-int imageQueueSize(ImageQueue *qp){
-	return qp->size;
-}
-
-/* Find smallest morphological closing without change of the current structuring element,
-  the result is the combination of the cubic and the sparse factor */
-
-Partition *smallestMorphClosing(Image *SE){
+Partition *smallestMorphOpening(Image *SE){
   Pixel *data = SE->data;
   unsigned int pix;
   int width = SE->width;
@@ -542,7 +784,7 @@ Partition *smallestMorphClosing(Image *SE){
   }
 
   foundRunlength = 0;
-  for(pix = 0; pix < seSize; pix += width ){ // loop horizontally over SE
+  for(pix = 0; pix < seSize; pix += width ){ // loop vertically over SE
     if( !foundRunlength && (data[pix] == MAX_PIX) ) { //Start counting line
       left.start.row = pix / width;
       left.start.col = pix % height;
@@ -559,7 +801,7 @@ Partition *smallestMorphClosing(Image *SE){
   }
 
   foundRunlength = 0;
-  for(pix = seSize; pix > 0; pix-- ){ // loop horizontally over SE
+  for(pix = seSize; pix > 0; pix-- ){ // loop vertically over SE
     if( !foundRunlength && (data[pix] == MAX_PIX) ) { //Start counting line
       bottom.start.row = pix / width;
       bottom.start.col = pix % height;
@@ -573,7 +815,7 @@ Partition *smallestMorphClosing(Image *SE){
   }
 
   foundRunlength = 0;
-  for(pix = seSize; pix > 0; pix -= width){ // loop horizontally over SE
+  for(pix = seSize; pix > 0; pix -= width){ // loop vertically over SE
     if( !foundRunlength && (data[pix] == MAX_PIX) ) { //Start counting line
       right.finish.row = pix / width;
       right.finish.col = pix % height;
@@ -612,7 +854,6 @@ Partition *smallestMorphClosing(Image *SE){
   for( int i = width/2; i < seSize/2; i += width){
   	if( data[i] == MAX_PIX){
   		yOffset = (width * height/2 - i ) / width;
-  		fprintf(stderr, "yOffset: %d\n", yOffset);
   		break;
   	}
   }
@@ -620,7 +861,6 @@ Partition *smallestMorphClosing(Image *SE){
   for( int i = width * height / 2 - width/2; i < seSize; i++){
   	if( data[i] == MAX_PIX){
   		xOffset = (width * height / 2) - i;
-  		fprintf(stderr, "yOffset: %d\n", xOffset);
   		break;
   	}
   }
@@ -635,11 +875,21 @@ Partition *smallestMorphClosing(Image *SE){
   return p;
 }
 
-void removePartition(Image *SE){
-  Pixel *data = SE->data;
+/*
+ * Function: removePartition 
+ * --------------------
+ *  
+ *  removes the previously computed partition from image im
+ * 
+ *  im: the image from which the partition should be removed
+ * 
+ */
+
+void removePartition(Image *im){
+  Pixel *data = im->data;
   unsigned int pix;
-  int width = SE->width;
-  int height = SE->height;
+  int width = im->width;
+  int height = im->height;
   int seSize = width * height;
 
   int foundRunlength = 0;
@@ -684,13 +934,24 @@ void removePartition(Image *SE){
   }
 }
 
+/*
+ * Function: dilateNaive 
+ * --------------------
+ *  
+ *  dilates an image with sparse factor s using a naive approach
+ * 
+ *  im: the image to be dilated
+ *  s: the sparsefactor
+ * 
+ */
+
 void dilateNaive(Image *im, SparseFactor s){
   int size = im->width * im->height;
   int width = im->width;
   int i;
   int max = MIN_PIX;
   for(i = 0; i < size; i++ ){
-    if( i - s.topOffset * width < size && i - s.topOffset * width >= 0 ) //bounds checking
+    if( i - s.topOffset * width < size && i - s.topOffset * width >= 0 ) 
     	max = MAX(im->data[i - s.topOffset * width], max);
     if( i + s.bottomOffset * width < size && i + s.bottomOffset * width >= 0 ) 
     	max = MAX(im->data[i + s.bottomOffset * width], max);
