@@ -5,7 +5,7 @@ OMP Convex/symmetrical structuring element decomposition based on a paper from V
 ## Running
 
 The first argument specifies the image name, the second argument specifies the radius of the spherical SE.
-To see a basic example of the working, run for example
+To see a basic example working, run for example:
 
 ```
 make clean && make all && ./sedecomp img1.png 3
