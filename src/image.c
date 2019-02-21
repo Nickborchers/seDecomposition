@@ -23,6 +23,8 @@
 #define RGB_GREEN 0.587
 #define RGB_BLUE 0.114
 
+#define VERBOSE 0
+
 /*
  * Function:  createImage 
  * --------------------
@@ -130,7 +132,7 @@ Image *computeBinaryDiscSE(int radius){
  */
 
 void writeImage(Image *im, char *name){
-  if(!stbi_write_png(name, im->width, im->height, im->channels, (unsigned char *) im->data, im->stride)){
+  if(!stbi_write_png(name, im->width, im->height, im->channels, (Pixel *) im->data, im->stride)){
     fprintf(stderr, "Writing of image with name: %s failed\n", name);
   }
   freeImage(im);
@@ -262,7 +264,7 @@ Pixel *dilate(Pixel *a,
   int u, i;
   int l = s/2;
 
-  Pixel *b = malloc(n * sizeof(Pixel));
+  Pixel *b = malloc((n + 1)* sizeof(Pixel));
   assert( b != NULL);
   
   for( u = l; u < n; u += s - 1){
@@ -286,6 +288,32 @@ Pixel *dilate(Pixel *a,
   return b;
 }
 
+
+/*
+ * Function:  dilate3
+ * --------------------
+ *  computes the dilation of row/column a with a structuring element size 3 naively,
+ *  a more complex algorithm like HGW is unnecessary in this case.
+ * 
+ *  a: the pixeldata
+ *  n: the size of the pixeldata
+ *  
+ *  returns: a pointer to the eroded pixeldata
+ */
+
+Pixel *dilate3(Pixel *a, int n){
+  int i;
+  Pixel *b = malloc(n * sizeof(Pixel));
+  assert( b != NULL);
+  
+  b[0] = MIN(a[0], a[1]);
+  for(i = 1; i < n - 1; i++){
+    b[i] = MIN(MIN(a[i - 1], a[i]), a[i + 1]);
+  }
+  b[n - 1] = MIN(a[n - 2], a[n - 1]);
+  return b;
+}
+
 /*
  * Function: dilation 
  * --------------------
@@ -305,13 +333,12 @@ void dilation(Image *im,
   int height = im->height;
   Pixel *a = im->data;
   int row, pix;
-
   int chunk = height/MAX_THREAD_NUM;
   #pragma omp parallel num_threads(MAX_THREAD_NUM) default(none) private(pix, row) firstprivate(s, chunk, n, height, direction) shared(im, a)
   {
     Pixel *b, *c, *d, *result;
     for( row = chunk * omp_get_thread_num(); row < chunk * (omp_get_thread_num() + 1); row++){      
-      b = malloc(n * sizeof(Pixel)); // buffer
+      b = malloc((n + 1) * sizeof(Pixel)); // buffer
       c = malloc( (s - 1) * sizeof(Pixel)); // left max array
       d = malloc( (s - 1) * sizeof(Pixel)); // right max array
       assert(b != NULL);
@@ -331,11 +358,14 @@ void dilation(Image *im,
           }
         }
       }
-      result = dilate(b, n, c, d, s);
+      if( s == 3 ){
+        result = dilate3(b, n);
+      }else{
+        result = dilate(b, n, c, d, s);
+        free(c);
+        free(d);
+      }
       free(b);
-      free(c);
-      free(d);
-
 
       /* Write back buffer to original array */
       #pragma omp critical
@@ -376,14 +406,15 @@ Pixel *erode(Pixel *a,
         int s){
   int u, i;
   int l = s/2;
-  Pixel *b = malloc(n * sizeof(Pixel));
+  Pixel *b = malloc((n+1) * sizeof(Pixel));
   assert( b != NULL);
   
   for( u = l; u < n; u += s - 1){
 
     d[0] = a[u];
-    for(i = 1; i < s - 1; i++)
+    for(i = 1; i < s - 1; i++){
       d[i] = MIN(d[i - 1], a[u + 1]);
+    }
     c[s - 2] = a[u - 1];
     for( i = 1; i < s - 1; i++){
       if( u - i - 1 < 0){ //boundary conditions
@@ -396,6 +427,32 @@ Pixel *erode(Pixel *a,
       b[u - l + i] = MIN(c[i], d[i]);
     }
   }
+  return b;
+}
+
+
+/*
+ * Function:  erode3
+ * --------------------
+ *  computes the erosion of row/column a with a structuring element of size 3 naively,
+ *  a more complex algorithm like HGW is unnecessary in this case.
+ * 
+ *  a: the pixeldata
+ *  n: the size of the pixeldata
+ *  
+ *  returns: a pointer to the eroded pixeldata
+ */
+
+Pixel *erode3(Pixel *a, int n){
+  int i;
+  Pixel *b = malloc(n * sizeof(Pixel));
+  assert( b != NULL);
+  
+  b[0] = MIN(a[0], a[1]);
+  for(i = 1; i < n - 1; i++){
+    b[i] = MIN(MIN(a[i - 1], a[i]), a[i + 1]);
+  }
+  b[n - 1] = MIN(a[n - 2], a[n - 1]);
   return b;
 }
 
@@ -419,13 +476,12 @@ void erosion(Image *im,
   Pixel *a = im->data;
 
   int chunk = height/MAX_THREAD_NUM;
-
   #pragma omp parallel num_threads(MAX_THREAD_NUM) default(none) firstprivate(s, chunk, n, height, direction) shared(im, a)
   {
     Pixel *b, *c, *d, *result;
     int pix, row;
     for( row = chunk * omp_get_thread_num(); row < chunk * (omp_get_thread_num() + 1); row++){      
-      b = malloc(n * sizeof(Pixel)); // buffer
+      b = malloc((n + 1)* sizeof(Pixel)); // buffer
       c = malloc( (s - 1) * sizeof(Pixel)); // left max array
       d = malloc( (s - 1) * sizeof(Pixel)); // right max array
       assert(b != NULL);
@@ -445,11 +501,14 @@ void erosion(Image *im,
           }
         }
       }
-      result = erode(b, n, c, d, s);
+      if( s == 3){
+        result = erode3(b, n);
+      }else{
+        result = erode(b, n, c, d, s);
+        free(c);
+        free(d);
+      }
       free(b);
-      free(c);
-      free(d);
-
       /* Write back buffer to original array */
       #pragma omp critical
       { 
@@ -475,16 +534,21 @@ void erosion(Image *im,
  *  that image with a structuring element of dimensions: horizontalSize * verticalSize
  * 
  *  im: the image to be morph opened
- *  horizontalSize: the size of the structuring element in the horizontal direction
- *  verticalSize: the size of the structuring element in the vertical direction
+ *  p: the partition consisting of a cubic and a sparse factor
  * 
  */
 
-void morphOpening(Image *im, int horizontalSize, int verticalSize){
-  erosion(im, horizontalSize, HORIZONTAL);
-  erosion(im, verticalSize, VERTICAL);
-  dilation(im, horizontalSize, HORIZONTAL);
-  dilation(im, verticalSize, VERTICAL);
+void morphOpening(Image *im, Partition p){
+  if( p.cubicFactor.width > 1 )
+    erosion(im, p.cubicFactor.width, HORIZONTAL);
+  if( p.cubicFactor.height > 1 )  
+    erosion(im, p.cubicFactor.height, VERTICAL);
+  erodeNaive(im, p.sparseFactor);
+  if( p.cubicFactor.width > 1)
+    dilation(im, p.cubicFactor.width, HORIZONTAL);
+  if( p.cubicFactor.height > 1)
+    dilation(im, p.cubicFactor.height, VERTICAL);
+  dilateNaive(im, p.sparseFactor);
 }
 
 /*
@@ -494,16 +558,21 @@ void morphOpening(Image *im, int horizontalSize, int verticalSize){
  *  that image with a structuring element of dimensions: horizontalSize * verticalSize
  * 
  *  im: the image to be morph closed
- *  horizontalSize: the size of the structuring element in the horizontal direction
- *  verticalSize: the size of the structuring element in the vertical direction
+ *  p: the partition consisting of a cubic and a sparse factor
  * 
  */
 
-void morphClosing(Image *im,  int horizontalSize, int verticalSize){
-  dilation(im, horizontalSize, HORIZONTAL);
-  dilation(im, verticalSize, VERTICAL);
-  erosion(im, horizontalSize, HORIZONTAL);
-  erosion(im, verticalSize, VERTICAL);
+void morphClosing(Image *im,  Partition p){
+  if( p.cubicFactor.width > 1 )
+    dilation(im, p.cubicFactor.width, HORIZONTAL);
+  if( p.cubicFactor.height > 1 )  
+  dilation(im, p.cubicFactor.height, VERTICAL);
+  dilateNaive(im, p.sparseFactor);
+  if( p.cubicFactor.width > 1 )
+    erosion(im, p.cubicFactor.width, HORIZONTAL);
+  if( p.cubicFactor.height > 1 )
+    erosion(im, p.cubicFactor.height, VERTICAL);
+  erodeNaive(im, p.sparseFactor);
 }
 
 /*
@@ -659,7 +728,7 @@ void rgbaToGrayscale(Image *im){
 
 Queue *newQueue(){
   Queue *new;
-  new = malloc(sizeof(Queue));
+  new = malloc(sizeof(struct Queue));
   assert(new != NULL);
   new->head = NULL;
   new->tail = NULL;
@@ -795,13 +864,12 @@ Partition *smallestMorphOpening(Image *SE){
       left.finish.col = pix % height;
       break;
     }
-    if(pix / ((width - 1) * height) > 0){
+    if(pix / ((width - 1) * height) > 0)
       pix = pix % width + 1 - width;
-    } 
   }
 
   foundRunlength = 0;
-  for(pix = seSize; pix > 0; pix-- ){ // loop vertically over SE
+  for(pix = seSize-1; pix > 0; pix-- ){ // loop vertically over SE
     if( !foundRunlength && (data[pix] == MAX_PIX) ) { //Start counting line
       bottom.start.row = pix / width;
       bottom.start.col = pix % height;
@@ -815,7 +883,7 @@ Partition *smallestMorphOpening(Image *SE){
   }
 
   foundRunlength = 0;
-  for(pix = seSize; pix > 0; pix -= width){ // loop vertically over SE
+  for(pix = seSize-1; pix > 0; pix -= width){ // loop vertically over SE
     if( !foundRunlength && (data[pix] == MAX_PIX) ) { //Start counting line
       right.finish.row = pix / width;
       right.finish.col = pix % height;
@@ -826,9 +894,8 @@ Partition *smallestMorphOpening(Image *SE){
       right.start.col = pix % height;
       break;
     }
-    if(pix <= width){
+    if(pix <= width)
       pix = seSize - width + pix - 1;
-    } 
   }
 
   int topLen = top.finish.col - top.start.col;
@@ -915,7 +982,7 @@ void removePartition(Image *im){
   }
 
   foundRunlength = 0;
-  for(pix = seSize; pix > 0; pix-- ){ // loop horizontally over SE
+  for(pix = seSize-1; pix > 0; pix-- ){ // loop horizontally over SE
     if( foundRunlength && data[pix] == MIN_PIX ) break;
     if( data[pix] == MAX_PIX ) {
       data[pix] = MIN_PIX;
@@ -924,7 +991,7 @@ void removePartition(Image *im){
   }
 
   foundRunlength = 0;
-  for(pix = seSize; pix > 0; pix -= width){ // loop horizontally over SE
+  for(pix = seSize-1; pix > 0; pix -= width){ // loop horizontally over SE
     if( foundRunlength && data[pix] == MIN_PIX ) break;
     if( data[pix] == MAX_PIX ){
       data[pix] = MIN_PIX;
@@ -948,17 +1015,81 @@ void removePartition(Image *im){
 void dilateNaive(Image *im, SparseFactor s){
   int size = im->width * im->height;
   int width = im->width;
-  int i;
-  int max = MIN_PIX;
+  Pixel *newData = malloc(im->width * im->height * sizeof(Pixel));
+  assert(newData != NULL);
+  int i, max;
   for(i = 0; i < size; i++ ){
-    if( i - s.topOffset * width < size && i - s.topOffset * width >= 0 ) 
+    max = MIN_PIX;
+    if( i - s.topOffset * width >= 0 )
     	max = MAX(im->data[i - s.topOffset * width], max);
-    if( i + s.bottomOffset * width < size && i + s.bottomOffset * width >= 0 ) 
-    	max = MAX(im->data[i + s.bottomOffset * width], max);
-    if( i -  s.leftOffset < size && i - s.leftOffset >= 0 ) 
-    	max = MAX(im->data[i - s.topOffset], max);
-    if( i + s.rightOffset < size && i + s.rightOffset >= 0 ) 
+    if( i + s.bottomOffset * width < size )
+      max = MAX(im->data[i + s.bottomOffset * width], max);
+    if( i - s.leftOffset >= 0 )
+    	max = MAX(im->data[i - s.leftOffset], max);
+    if( i + s.rightOffset < size )
     	max = MAX(im->data[i + s.rightOffset], max);
-    im->data[i] = max;
+    newData[i] = max;
   }
+  free(im->data);
+  im->data = newData;
+}
+
+/*
+ * Function: erodeNaive 
+ * --------------------
+ *  
+ *  erodes an image with sparse factor s using a naive approach
+ * 
+ *  im: the image to be eroded
+ *  s: the sparsefactor
+ * 
+ */
+
+void erodeNaive(Image *im, SparseFactor s){
+  int size = im->width * im->height;
+  int width = im->width;
+  Pixel *newData = malloc(im->width * im->height * sizeof(Pixel));
+  assert(newData != NULL);
+  int min, i;
+  for(i = 0; i < size; i++ ){
+    min = MAX_PIX;
+    if( i - s.topOffset * width >= 0 ) 
+      min = MIN(im->data[i - s.topOffset * width], min);
+    if( i + s.bottomOffset * width < size ) 
+      min = MIN(im->data[i + s.bottomOffset * width], min);
+    if( i - s.leftOffset >= 0 ) 
+      min = MIN(im->data[i - s.leftOffset], min);
+    if( i + s.rightOffset < size ) 
+      min = MIN(im->data[i + s.rightOffset], min);
+    newData[i] = min;
+  }
+  free(im->data);
+  im->data = newData;
+}
+
+/*
+ * Function: decompose 
+ * --------------------
+ *  
+ *  Decomposes a structuring element SE into a union of partitions and 
+ *    enqueues each partition
+ * 
+ *  SE: the structuring element to be decomposed
+ *  qp: the queue in which the partitions are stored
+ * 
+ */
+
+void decompose(Image *SE, Queue *qp){
+  Partition *p;
+  do{
+    p = smallestMorphOpening(SE);
+    if( p == NULL ) {
+      fprintf(stderr, "Something went wrong while partitioning\n");
+      exit(-1);
+    }
+    enqueue(qp, p);
+    removePartition(SE);
+    if(VERBOSE) printBinaryImage(SE);
+    if(p->sparseFactor.topOffset <= 1 && p->sparseFactor.leftOffset <= 1 ) break;
+  }while( p != NULL);
 }
