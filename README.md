@@ -2,12 +2,16 @@
 
 OMP Convex/symmetrical structuring element decomposition based on a paper from Vaz et al.
 
-## Getting Started
+## Running
 
-To see a basic example of the executable working, run:
+The first argument specifies the image name, the second argument specifies the radius of the spherical SE.
+To see a basic example of the working, run for example
 
 ```
-make clean && make all && ./sedecomp yourgrayscaleimage.png
+make clean && make all && ./sedecomp img1.png 3
+./sedecomp img2.png 4
+./sedecomp img3.png 4
+./sedecomp img4.png 8
 ```
 
 ## 3rd party libraries

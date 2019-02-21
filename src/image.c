@@ -1093,5 +1093,3 @@ void decompose(Image *SE, Queue *qp){
     if(p->sparseFactor.topOffset <= 1 && p->sparseFactor.leftOffset <= 1 ) break;
   }while( p != NULL);
 }
-
-
