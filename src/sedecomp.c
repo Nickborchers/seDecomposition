@@ -4,14 +4,15 @@
 #include <assert.h>
 #include "image.c"
 
-#define SE_SIZE 27
+#define SE_RADIUS 9
 #define GRAYSCALE_TO_BINARY_THRESHOLD 100
 
-// STBI_grey       = 1
-// STBI_grey_alpha = 2
-// STBI_rgb        = 3
-// STBI_rgb_alpha  = 4
-
+/*  
+ *  ----------------
+ *  Example use of the image.c library: 
+ *  run as ./sedecomp.out yourimagename.png 
+ *
+ */
 
 int main(int argc, char *argv[]){
   if( argc <= 1 ) {
@@ -26,21 +27,19 @@ int main(int argc, char *argv[]){
   Image *CSE;
   Partition *p;
   Queue *qp = newQueue();
-
-  CSE = computeBinaryDiscSE(SE_SIZE);
+  CSE = computeBinaryDiscSE(SE_RADIUS);
+  printf("Initial SE: \n");
   printBinaryImage(CSE);
-  do{
-    p = smallestMorphOpening(CSE);
-    if( p == NULL ) {
-      fprintf(stderr, "Something went wrong while partitioning\n");
-      exit(-1);
-    }
-    enqueue(qp, p);
-    removePartition(CSE);
-    printBinaryImage(CSE);
-    if(p->sparseFactor.topOffset ==  1 && p->sparseFactor.leftOffset == 1 ) break;
-  }while( p != NULL);
-
-  fprintf(stderr, "queuesize: %d\n", qp->size);
+  decompose(CSE, qp);
+  freeImage(CSE);
+  
+  while(queueSize(qp) > 0 ) {
+    p = dequeue(qp);
+    morphOpening(im, *p);
+    free(p);
+  }
+  // writeImage(im, "closing.png");
+  freeImage(im);
+  freeQueue(qp);
   return 0;
 }
