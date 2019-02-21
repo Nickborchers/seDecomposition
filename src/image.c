@@ -264,7 +264,7 @@ Pixel *dilate(Pixel *a,
   int u, i;
   int l = s/2;
 
-  Pixel *b = malloc(n * sizeof(Pixel));
+  Pixel *b = malloc((n + 1)* sizeof(Pixel));
   assert( b != NULL);
   
   for( u = l; u < n; u += s - 1){
@@ -333,13 +333,12 @@ void dilation(Image *im,
   int height = im->height;
   Pixel *a = im->data;
   int row, pix;
-  fprintf(stderr, "s: %d\n", s);
   int chunk = height/MAX_THREAD_NUM;
   #pragma omp parallel num_threads(MAX_THREAD_NUM) default(none) private(pix, row) firstprivate(s, chunk, n, height, direction) shared(im, a)
   {
     Pixel *b, *c, *d, *result;
     for( row = chunk * omp_get_thread_num(); row < chunk * (omp_get_thread_num() + 1); row++){      
-      b = malloc(n * sizeof(Pixel)); // buffer
+      b = malloc((n + 1) * sizeof(Pixel)); // buffer
       c = malloc( (s - 1) * sizeof(Pixel)); // left max array
       d = malloc( (s - 1) * sizeof(Pixel)); // right max array
       assert(b != NULL);
@@ -407,7 +406,7 @@ Pixel *erode(Pixel *a,
         int s){
   int u, i;
   int l = s/2;
-  Pixel *b = malloc(n * sizeof(Pixel));
+  Pixel *b = malloc((n+1) * sizeof(Pixel));
   assert( b != NULL);
   
   for( u = l; u < n; u += s - 1){
@@ -435,7 +434,7 @@ Pixel *erode(Pixel *a,
 /*
  * Function:  erode3
  * --------------------
- *  computes the erosion of row/column a with a structuring element size 3 naively,
+ *  computes the erosion of row/column a with a structuring element of size 3 naively,
  *  a more complex algorithm like HGW is unnecessary in this case.
  * 
  *  a: the pixeldata
@@ -477,13 +476,12 @@ void erosion(Image *im,
   Pixel *a = im->data;
 
   int chunk = height/MAX_THREAD_NUM;
-  fprintf(stderr, "s: %d\n", s);
   #pragma omp parallel num_threads(MAX_THREAD_NUM) default(none) firstprivate(s, chunk, n, height, direction) shared(im, a)
   {
     Pixel *b, *c, *d, *result;
     int pix, row;
     for( row = chunk * omp_get_thread_num(); row < chunk * (omp_get_thread_num() + 1); row++){      
-      b = malloc(n * sizeof(Pixel)); // buffer
+      b = malloc((n + 1)* sizeof(Pixel)); // buffer
       c = malloc( (s - 1) * sizeof(Pixel)); // left max array
       d = malloc( (s - 1) * sizeof(Pixel)); // right max array
       assert(b != NULL);
@@ -1017,7 +1015,7 @@ void removePartition(Image *im){
 void dilateNaive(Image *im, SparseFactor s){
   int size = im->width * im->height;
   int width = im->width;
-  Pixel *newData = malloc(im->width * im->height * im->channels * sizeof(Pixel));
+  Pixel *newData = malloc(im->width * im->height * sizeof(Pixel));
   assert(newData != NULL);
   int i, max;
   for(i = 0; i < size; i++ ){
@@ -1050,7 +1048,7 @@ void dilateNaive(Image *im, SparseFactor s){
 void erodeNaive(Image *im, SparseFactor s){
   int size = im->width * im->height;
   int width = im->width;
-  Pixel *newData = malloc(im->width * im->height * im->channels * sizeof(Pixel));
+  Pixel *newData = malloc(im->width * im->height * sizeof(Pixel));
   assert(newData != NULL);
   int min, i;
   for(i = 0; i < size; i++ ){
@@ -1074,7 +1072,7 @@ void erodeNaive(Image *im, SparseFactor s){
  * --------------------
  *  
  *  Decomposes a structuring element SE into a union of partitions and 
- *  enqueues each partition
+ *    enqueues each partition
  * 
  *  SE: the structuring element to be decomposed
  *  qp: the queue in which the partitions are stored

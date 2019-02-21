@@ -6,6 +6,7 @@
 
 #define SE_RADIUS 9
 #define GRAYSCALE_TO_BINARY_THRESHOLD 100
+#define FILENAME_BUFFER_SIZE 128
 
 /*  
  *  ----------------
@@ -20,14 +21,19 @@ int main(int argc, char *argv[]){
     return 0;
   }
 
+  int seRadius = SE_RADIUS;
+  if( argc >= 3)
+    seRadius = atoi(argv[2]);
+
   char *name = argv[1];
 
-  Image *im = readImage(name);
-
+  Image *opening = readImage(name);
+  Image *closing = readImage(name);
   Image *CSE;
   Partition *p;
   Queue *qp = newQueue();
-  CSE = computeBinaryDiscSE(SE_RADIUS);
+  CSE = computeBinaryDiscSE(seRadius);
+  
   printf("Initial SE: \n");
   printBinaryImage(CSE);
   decompose(CSE, qp);
@@ -35,11 +41,17 @@ int main(int argc, char *argv[]){
   
   while(queueSize(qp) > 0 ) {
     p = dequeue(qp);
-    morphOpening(im, *p);
+    morphOpening(opening, *p);
+    morphClosing(closing, *p);
     free(p);
   }
-  // writeImage(im, "closing.png");
-  freeImage(im);
+
+  char fileNameOpened[FILENAME_BUFFER_SIZE] = "morph_opened_";
+  char fileNameClosed[FILENAME_BUFFER_SIZE] = "morph_closed_";
+  strcat(fileNameOpened, name);
+  strcat(fileNameClosed, name);
+  writeImage(opening, fileNameOpened);
+  writeImage(closing, fileNameClosed);
   freeQueue(qp);
   return 0;
 }
