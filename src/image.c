@@ -338,7 +338,7 @@ void dilation(Image *im,
   {
     Pixel *b, *c, *d, *result;
     for( row = chunk * omp_get_thread_num(); row < chunk * (omp_get_thread_num() + 1); row++){      
-      b = malloc((n + 1) * sizeof(Pixel)); // buffer
+      b = malloc( (n + 1) * sizeof(Pixel)); // buffer
       c = malloc( (s - 1) * sizeof(Pixel)); // left max array
       d = malloc( (s - 1) * sizeof(Pixel)); // right max array
       assert(b != NULL);
@@ -801,6 +801,12 @@ void enqueue(Queue *qp, Partition *new){
 
 Partition *dequeue(Queue *qp){ 
   if( qp->size < 2) {
+    if( qp->size == 1) qp->tail = qp->head;
+    if( qp->size == 0) {
+      qp->head = NULL;
+      qp->tail = NULL;
+      return NULL;
+    }
     qp->size--;
     return qp->head;
   }
@@ -808,8 +814,6 @@ Partition *dequeue(Queue *qp){
   Partition *n = qp->head;
   qp->head = qp->head->next;
   qp->size--;
-  if( qp->size == 1) qp->tail = qp->head;
-
   return n;
 }
 
