@@ -262,9 +262,9 @@ Pixel *dilate(Pixel *a,
         int s
         ){
   int u, i;
-  int l = s/2;
+  int l = s / 2;
 
-  Pixel *b = malloc((n + 1)* sizeof(Pixel));
+  Pixel *b = calloc((n + 1), sizeof(Pixel));
   assert( b != NULL);
   
   for( u = l; u < n; u += s - 1){
@@ -281,6 +281,7 @@ Pixel *dilate(Pixel *a,
       c[s - i - 2] = MAX(c[s - i - 1], a[u - i - 1]);
     }
     for(i = 0; i < s - 1; i++){
+    	if( u - l + i >= n ) break;
       b[u - l + i] = MAX(c[i], d[i]);
     }
   }
@@ -303,7 +304,7 @@ Pixel *dilate(Pixel *a,
 
 Pixel *dilate3(Pixel *a, int n){
   int i;
-  Pixel *b = malloc(n * sizeof(Pixel));
+  Pixel *b = calloc(n, sizeof(Pixel));
   assert( b != NULL);
   
   b[0] = MIN(a[0], a[1]);
@@ -360,7 +361,7 @@ void dilation(Image *im,
       }
       if( s == 3 ){
         result = dilate3(b, n);
-      }else{
+      } else {
         result = dilate(b, n, c, d, s);
         free(c);
         free(d);
@@ -379,7 +380,7 @@ void dilation(Image *im,
             a[pix*n + row] = result[pix];
           }
         }
-      free(result);
+      	free(result);
       }
     }
   }
@@ -406,7 +407,7 @@ Pixel *erode(Pixel *a,
         int s){
   int u, i;
   int l = s/2;
-  Pixel *b = malloc((n+1) * sizeof(Pixel));
+  Pixel *b = calloc((n + 1), sizeof(Pixel));
   assert( b != NULL);
   
   for( u = l; u < n; u += s - 1){
@@ -424,6 +425,7 @@ Pixel *erode(Pixel *a,
       c[s - i - 2] = MIN(c[s - i - 1], a[u - i - 1]);
     }
     for(i = 0; i < s - 1; i++){
+      if( u - l + i >= n ) break;
       b[u - l + i] = MIN(c[i], d[i]);
     }
   }
@@ -445,7 +447,7 @@ Pixel *erode(Pixel *a,
 
 Pixel *erode3(Pixel *a, int n){
   int i;
-  Pixel *b = malloc(n * sizeof(Pixel));
+  Pixel *b = calloc((n + 2), sizeof(Pixel));
   assert( b != NULL);
   
   b[0] = MIN(a[0], a[1]);
@@ -481,9 +483,9 @@ void erosion(Image *im,
     Pixel *b, *c, *d, *result;
     int pix, row;
     for( row = chunk * omp_get_thread_num(); row < chunk * (omp_get_thread_num() + 1); row++){      
-      b = malloc((n + 1)* sizeof(Pixel)); // buffer
-      c = malloc( (s - 1) * sizeof(Pixel)); // left max array
-      d = malloc( (s - 1) * sizeof(Pixel)); // right max array
+      b = calloc( (n + 1), sizeof(Pixel)); // buffer
+      c = calloc( (s - 1), sizeof(Pixel)); // left max array
+      d = calloc( (s - 1), sizeof(Pixel)); // right max array
       assert(b != NULL);
       assert(c != NULL);
       assert(d != NULL);
@@ -917,7 +919,7 @@ Partition *smallestMorphOpening(Image *SE){
   c.height = botLen;
 
   Partition *p = malloc(sizeof(struct Partition));
-  assert( p != NULL );
+  assert( p != NULL );  
   p->cubicFactor = c;
 
   int yOffset, xOffset;
@@ -928,7 +930,7 @@ Partition *smallestMorphOpening(Image *SE){
   		break;
   	}
   }
-  // Compute distance from left/right to midde, we know the SE is symmetrical
+  // Compute distance from left/right to middle, we know the SE is symmetrical
   for( int i = width * height / 2 - width/2; i < seSize; i++){
   	if( data[i] == MAX_PIX){
   		xOffset = (width * height / 2) - i;
@@ -1019,7 +1021,7 @@ void removePartition(Image *im){
 void dilateNaive(Image *im, SparseFactor s){
   int size = im->width * im->height;
   int width = im->width;
-  Pixel *newData = malloc(im->width * im->height * sizeof(Pixel));
+  Pixel *newData = calloc(im->width * im->height, sizeof(Pixel));
   assert(newData != NULL);
   int i, max;
   for(i = 0; i < size; i++ ){
@@ -1052,7 +1054,7 @@ void dilateNaive(Image *im, SparseFactor s){
 void erodeNaive(Image *im, SparseFactor s){
   int size = im->width * im->height;
   int width = im->width;
-  Pixel *newData = malloc(im->width * im->height * sizeof(Pixel));
+  Pixel *newData = calloc(im->width * im->height, sizeof(Pixel));
   assert(newData != NULL);
   int min, i;
   for(i = 0; i < size; i++ ){
