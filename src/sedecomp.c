@@ -36,15 +36,9 @@ int main(int argc, char *argv[]){
   CSE = computeBinaryDiscSE(seRadius);
 
   
-  // printf("Initial SE: \n");
-  // printBinaryImage(CSE);
-  clock_t begin = clock();
+  printf("Initial SE: \n");
+  printBinaryImage(CSE);
   decompose(CSE, qp);
-  clock_t end = clock();
-  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  fprintf(stderr, "Decomposition done: time spent: %lf\n", time_spent);
-  begin = clock();
-  int counter = 0;
   while(queueSize(qp) > 0 ) {
     p = dequeue(qp);
     morphOpening(opening, *p);
@@ -52,13 +46,12 @@ int main(int argc, char *argv[]){
     free(p);
   }
 
-  end = clock();
-  time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  fprintf(stderr, "All computing done: time spent: %lf\n", time_spent);
   char fileNameOpened[FILENAME_BUFFER_SIZE] = "morph_opened_";
+  char fileNameClosed[FILENAME_BUFFER_SIZE] = "morph_closed_";
   strcat(fileNameOpened, name);
+  strcat(fileNameClosed, name);
   writeImage(opening, fileNameOpened);
-
+  writeImage(closing, fileNameClosed);
   freeImage(CSE);
   freeQueue(qp);
   return 0;
