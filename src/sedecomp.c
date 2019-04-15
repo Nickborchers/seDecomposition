@@ -34,11 +34,12 @@ int main(int argc, char *argv[]){
   Partition *p;
   Queue *qp = newQueue();
   CSE = computeBinaryDiscSE(seRadius);
-
   
   printf("Initial SE: \n");
-  printBinaryImage(CSE);
+  // printBinaryImage(CSE);
   decompose(CSE, qp);
+
+  clock_t begin = clock();
   while(queueSize(qp) > 0 ) {
     p = dequeue(qp);
     morphOpening(opening, *p);
@@ -46,6 +47,9 @@ int main(int argc, char *argv[]){
     free(p);
   }
 
+  clock_t end = clock();
+  double timeExpired = ((double) (end - begin)) / CLOCKS_PER_SEC;
+  fprintf(stderr, "Time it took: %lf\n", timeExpired);
   char fileNameOpened[FILENAME_BUFFER_SIZE] = "morph_opened_";
   char fileNameClosed[FILENAME_BUFFER_SIZE] = "morph_closed_";
   strcat(fileNameOpened, name);
