@@ -605,12 +605,12 @@ void morphOpening(Image *im, Partition p){
   if( p.cubicFactor.width > 1 )
     erosion(im, p.cubicFactor.width, HORIZONTAL);
   if( p.cubicFactor.height > 1 )  
-    erosion(im, p.cubicFactor.height, VERTICAL);
+    // erosion(im, p.cubicFactor.height, VERTICAL);
   erodeNaive(im, p.sparseFactor);
   if( p.cubicFactor.width > 1)
     dilation(im, p.cubicFactor.width, HORIZONTAL);
   if( p.cubicFactor.height > 1)
-    dilation(im, p.cubicFactor.height, VERTICAL);
+    // dilation(im, p.cubicFactor.height, VERTICAL);
   dilateNaive(im, p.sparseFactor);
 }
 
@@ -630,12 +630,12 @@ void morphClosing(Image *im,  Partition p){
     dilation(im, p.cubicFactor.width, HORIZONTAL);
   if( p.cubicFactor.height > 1 )  
   dilation(im, p.cubicFactor.height, VERTICAL);
-  dilateNaive(im, p.sparseFactor);
+  // dilateNaive(im, p.sparseFactor);
   if( p.cubicFactor.width > 1 )
     erosion(im, p.cubicFactor.width, HORIZONTAL);
   if( p.cubicFactor.height > 1 )
     erosion(im, p.cubicFactor.height, VERTICAL);
-  erodeNaive(im, p.sparseFactor);
+  // erodeNaive(im, p.sparseFactor);
 }
 
 /*
@@ -1085,7 +1085,7 @@ void dilateNaive(Image *im, SparseFactor s){
   Pixel *newData = calloc(im->width * im->height, sizeof(Pixel));
   assert(newData != NULL);
   int i, max;
-  for(i = 0; i < size - 1; i++ ){
+  for(i = 0; i < size; i++ ){
     max = MIN_PIX;
     if( i - s.topOffset * width >= 0 )
       max = MAX(im->data[i - s.topOffset * width], max);
@@ -1115,7 +1115,7 @@ void dilateNaive(Image *im, SparseFactor s){
 void erodeNaive(Image *im, SparseFactor s){
   int size = im->width * im->height;
   int width = im->width;
-  Pixel *newData = calloc(im->width * im->height, sizeof(Pixel));
+  Pixel *newData = calloc(im->width * im->height + 2, sizeof(Pixel));
   assert(newData != NULL);
   int min, i;
   for(i = 0; i < size; i++ ){

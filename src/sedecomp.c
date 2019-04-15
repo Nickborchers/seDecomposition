@@ -43,7 +43,6 @@ int main(int argc, char *argv[]){
   while(queueSize(qp) > 0 ) {
     p = dequeue(qp);
     morphOpening(opening, *p);
-    morphClosing(closing, *p);
     free(p);
   }
 
@@ -51,11 +50,8 @@ int main(int argc, char *argv[]){
   double timeExpired = ((double) (end - begin)) / CLOCKS_PER_SEC;
   fprintf(stderr, "Time it took: %lf\n", timeExpired);
   char fileNameOpened[FILENAME_BUFFER_SIZE] = "morph_opened_";
-  char fileNameClosed[FILENAME_BUFFER_SIZE] = "morph_closed_";
   strcat(fileNameOpened, name);
-  strcat(fileNameClosed, name);
   writeImage(opening, fileNameOpened);
-  writeImage(closing, fileNameClosed);
   freeImage(CSE);
   freeQueue(qp);
   return 0;
