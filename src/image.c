@@ -33,7 +33,7 @@
  *  data: a pointer to the block of pixel data
  *  width: the width of the image
  *  height: the height of the image
- *	channels: the amount of channels for the image (specified in stbi_image_write.h, from line 78)
+ *  channels: the amount of channels for the image (specified in stbi_image_write.h, from line 78)
  * 
  *  returns: a pointer to the new Image object
  */
@@ -206,8 +206,8 @@ int getChannels(Image *im){
  */
 
 Pixel *getData(Image *im){
-	if( im != NULL) return im->data;
-	return NULL;
+  if( im != NULL) return im->data;
+  return NULL;
 }
 
 /*
@@ -242,7 +242,7 @@ void setPixel(Image *im, int row, int column, Pixel val){
 }
 
 /*
- * Function:  dilate 
+ * Function:  dilateHorizontal
  * --------------------
  *  computes the dilation of row/column a with a structuring element size s using the HGW algorithm
  * 
@@ -252,21 +252,16 @@ void setPixel(Image *im, int row, int column, Pixel val){
  *  d: the 'right' buffer 
  *  s: the size of the structuring element
  *
- *  returns: a pointer to the dilated pixeldata
  */
 
-Pixel *dilate(Pixel *a, 
+void dilateHorizontal(Pixel *a, 
         int n,
         Pixel *c,
         Pixel *d,
         int s
         ){
   int u, i;
-  int l = s / 2;
-
-  Pixel *b = calloc((n + 1), sizeof(Pixel));
-  assert( b != NULL);
-  
+  int l = s / 2;  
   for( u = l; u < n; u += s - 1){
 
     d[0] = a[u];
@@ -274,24 +269,64 @@ Pixel *dilate(Pixel *a,
       d[i] = MAX(d[i - 1], a[u + 1]);
     c[s - 2] = a[u - 1];
     for( i = 1; i < s - 1; i++){
-      if( u - i - 1 < 0){ //boundary conditions
+      if( u - i - 1 < 0){ 
         c[s - i - 2] = MIN_PIX;
         continue;
       }
       c[s - i - 2] = MAX(c[s - i - 1], a[u - i - 1]);
     }
     for(i = 0; i < s - 1; i++){
-    	if( u - l + i >= n ) break;
-      b[u - l + i] = MAX(c[i], d[i]);
+      if( u - l + i >= n ) break;
+      a[u - l + i] = MAX(c[i], d[i]);
     }
   }
-
-  return b;
 }
 
 
 /*
- * Function:  dilate3
+ * Function:  dilateVertical
+ * --------------------
+ *  computes the dilation of row/column a with a structuring element size s using the HGW algorithm
+ * 
+ *  a: the pixeldata
+ *  n: the size of the pixeldata
+ *  c: the 'left' buffer
+ *  d: the 'right' buffer 
+ *  s: the size of the structuring element
+ *  height: the height of the image
+ */
+
+void dilateVertical(Pixel *a, 
+        int n,
+        Pixel *c,
+        Pixel *d,
+        int s,
+        int height
+        ){
+  int u, i;
+  int l = s / 2;  
+  for( u = l; u < n; u += s - 1){
+    d[0] = a[u * n];
+    for(i = 1; i < s - 1; i++)
+      d[i] = MAX(d[i - 1], a[ (u + 1) * n ]);
+    c[s - 2] = a[ (u - 1) * n ];
+    for( i = 1; i < s - 1; i++){
+      if( u - i - 1 < 0){ 
+        c[s - i - 2] = MIN_PIX;
+        continue;
+      }
+      c[s - i - 2] = MAX(c[s - i - 1], a[ (u - i - 1) * n ]);
+    }
+    for(i = 0; i < s - 1; i++){
+      if( u - l + i >= n ) break;
+      a[ (u - l + i) * n] = MAX(c[i], d[i]);
+    }
+  }
+
+}
+
+/*
+ * Function:  dilate3Horizontal
  * --------------------
  *  computes the dilation of row/column a with a structuring element size 3 naively,
  *  a more complex algorithm like HGW is unnecessary in this case.
@@ -299,20 +334,49 @@ Pixel *dilate(Pixel *a,
  *  a: the pixeldata
  *  n: the size of the pixeldata
  *  
- *  returns: a pointer to the eroded pixeldata
  */
 
-Pixel *dilate3(Pixel *a, int n){
+void dilate3Horizontal(Pixel *a, int n){
   int i;
   Pixel *b = calloc(n, sizeof(Pixel));
-  assert( b != NULL);
-  
+  assert( b != NULL );
+
   b[0] = MIN(a[0], a[1]);
   for(i = 1; i < n - 1; i++){
     b[i] = MIN(MIN(a[i - 1], a[i]), a[i + 1]);
   }
   b[n - 1] = MIN(a[n - 2], a[n - 1]);
-  return b;
+
+  for(i = 0; i < n; i++)
+    a[i] = b[i];
+  free(b);
+}
+
+/*
+ * Function:  dilate3Vertical
+ * --------------------
+ *  computes the dilation of row/column a with a structuring element size 3 naively in the vertical direction
+ *  a more complex algorithm like HGW is unnecessary in this case.
+ * 
+ *  a: the pixeldata
+ *  n: the size of the pixeldata
+ *  height: the height of the image
+ *  
+ */
+
+void dilate3Vertical(Pixel *a, int n, int height){
+  int i;
+  Pixel *b = calloc(n, sizeof(Pixel));
+  assert( b != NULL );
+
+  b[0] = MIN(a[0], a[n]);
+  for(i = 1; i < n - 1; i++){
+    b[i] = MIN(MIN(a[(i - 1) * n], a[i * n]), a[(i + 1) * n]);
+  }
+  b[n - 1] = MIN(a[(n - 2) * n], a[(n - 1) * n]);
+  for(i = 0; i < n; i++)
+    a[i * n] = b[i];
+  free(b);
 }
 
 /*
@@ -333,63 +397,39 @@ void dilation(Image *im,
   int n = im->width;
   int height = im->height;
   Pixel *a = im->data;
-  int row, pix;
-  int chunk = height/MAX_THREAD_NUM;
-  #pragma omp parallel num_threads(MAX_THREAD_NUM) default(none) private(pix, row) firstprivate(s, chunk, n, height, direction) shared(im, a)
+  int row;
+  int chunk = height / MAX_THREAD_NUM;
+  Pixel *c, *d;
+  #pragma omp parallel num_threads(MAX_THREAD_NUM) default(none) private(row, c, d) firstprivate(s, chunk, n, height, direction) shared(im, a)
   {
-    Pixel *b, *c, *d, *result;
     for( row = chunk * omp_get_thread_num(); row < chunk * (omp_get_thread_num() + 1); row++){      
-      b = malloc( (n + 1) * sizeof(Pixel)); // buffer
-      c = malloc( (s - 1) * sizeof(Pixel)); // left max array
-      d = malloc( (s - 1) * sizeof(Pixel)); // right max array
-      assert(b != NULL);
-      assert(c != NULL);
-      assert(d != NULL);
-
-      /* Fill buffer with data */
-      #pragma omp critical
-      { 
+      if( s == 3){
         if( direction == HORIZONTAL ){
-          for(pix = 0; pix < n; pix++) {
-            b[pix] = a[row*n + pix];
-          }
+          dilate3Horizontal(&(a[row * n]), n);
         }else{
-          for(pix = 0; pix < n; pix++) {
-            b[pix] = a[pix*n + row];
-          }
+          dilate3Vertical(&(a[row]), n, height);
         }
-      }
-      if( s == 3 ){
-        result = dilate3(b, n);
-      } else {
-        result = dilate(b, n, c, d, s);
+      }else{
+        c = calloc( (s - 1), sizeof(Pixel)); // left max array
+        assert(c != NULL);
+        d = calloc( (s - 1), sizeof(Pixel)); // right max array
+        assert(d != NULL);
+        if( direction == HORIZONTAL ){
+          dilateHorizontal(&(a[row * n]), n, c, d, s);
+        }else{
+          dilateVertical(&(a[row]), n, c, d, s, height);
+        }
         free(c);
         free(d);
-      }
-      free(b);
-
-      /* Write back buffer to original array */
-      #pragma omp critical
-      { 
-        if( direction == HORIZONTAL ){
-          for(pix = 0; pix < n; pix++) {
-            a[row*n + pix] = result[pix];
-          }
-        }else{
-          for(pix = 0; pix < n; pix++) {
-            a[pix*n + row] = result[pix];
-          }
-        }
-      	free(result);
       }
     }
   }
 }
 
 /*
- * Function:  erode 
+ * Function:  erodeHorizontal
  * --------------------
- *  computes the erosion of row/column a with a structuring element size s using the HGW algorithm
+ *  computes the erosion of row/column a with a structuring element size s using the HGW algorithm in the horizontal direction
  * 
  *  a: the pixeldata
  *  n: the size of the pixeldata
@@ -397,19 +437,15 @@ void dilation(Image *im,
  *  d: the 'right' buffer 
  *  s: the size of the structuring element
  *
- *  returns: a pointer to the eroded pixeldata
  */
 
-Pixel *erode(Pixel *a, 
+void erodeHorizontal(Pixel *a, 
         int n,
         Pixel *c,
         Pixel *d,
         int s){
   int u, i;
   int l = s/2;
-  Pixel *b = calloc((n + 1), sizeof(Pixel));
-  assert( b != NULL);
-  
   for( u = l; u < n; u += s - 1){
 
     d[0] = a[u];
@@ -418,7 +454,7 @@ Pixel *erode(Pixel *a,
     }
     c[s - 2] = a[u - 1];
     for( i = 1; i < s - 1; i++){
-      if( u - i - 1 < 0){ //boundary conditions
+      if( u - i - 1 < 0){ 
         c[s - i - 2] = MAX_PIX;
         continue;
       }
@@ -426,15 +462,82 @@ Pixel *erode(Pixel *a,
     }
     for(i = 0; i < s - 1; i++){
       if( u - l + i >= n ) break;
-      b[u - l + i] = MIN(c[i], d[i]);
+      a[u - l + i] = MIN(c[i], d[i]);
     }
   }
-  return b;
+}
+
+/*
+ * Function:  erodeVertical
+ * --------------------
+ *  computes the erosion of row/column a with a structuring element size s using the HGW algorithm in the vertical direction
+ * 
+ *  a: the pixeldata
+ *  n: the size of the pixeldata
+ *  c: the 'left' buffer
+ *  d: the 'right' buffer 
+ *  s: the size of the structuring element
+ *  height: the height of the image
+ *
+ */
+
+void erodeVertical(Pixel *a, 
+        int n,
+        Pixel *c,
+        Pixel *d,
+        int s,
+        int height){
+  int u, i;
+  int l = s/2;
+  for( u = l; u < n; u += s - 1){
+
+    d[0] = a[u * n];
+    for(i = 1; i < s - 1; i++){
+      d[i] = MIN(d[i - 1], a[(u + 1) * n]);
+    }
+    c[s - 2] = a[(u - 1) * n];
+    for( i = 1; i < s - 1; i++){
+      if( u - i - 1 < 0){ 
+        c[s - i - 2] = MAX_PIX;
+        continue;
+      }
+      c[s - i - 2] = MIN(c[s - i - 1], a[(u - i - 1) * n]);
+    }
+    for(i = 0; i < s - 1; i++){
+      if( u - l + i >= n ) break;
+      a[(u - l + i) * n] = MIN(c[i], d[i]);
+    }
+  }
 }
 
 
 /*
- * Function:  erode3
+ * Function:  erode3Vertical
+ * --------------------
+ *  computes the erosion of row/column a with a structuring element of size 3 naively,
+ *  a more complex algorithm like HGW is unnecessary in this case.
+ * 
+ *  a: the pixeldata
+ *  n: the size of the pixeldata
+ *  height: the height of the image
+ */
+
+void erode3Vertical(Pixel *a, int n, int height){
+  int i;
+  Pixel *b = calloc(n, sizeof(Pixel));
+  assert( b != NULL );
+  b[0] = MIN(a[0], a[n]);
+  for(i = 1; i < n - 1; i++){
+    b[i] = MIN(MIN(a[(i - 1) * n], a[i * n]), a[(i + 1) * n]);
+  }
+  b[n - 1] = MIN(a[(n - 2) * n], a[(n - 1) * n]);
+  for(i = 0; i < n; i++)
+    a[i * n] = b[i];
+}
+
+
+/*
+ * Function:  erode3Horizontal
  * --------------------
  *  computes the erosion of row/column a with a structuring element of size 3 naively,
  *  a more complex algorithm like HGW is unnecessary in this case.
@@ -442,20 +545,20 @@ Pixel *erode(Pixel *a,
  *  a: the pixeldata
  *  n: the size of the pixeldata
  *  
- *  returns: a pointer to the eroded pixeldata
  */
 
-Pixel *erode3(Pixel *a, int n){
+void erode3Horizontal(Pixel *a, int n){
   int i;
-  Pixel *b = calloc((n + 2), sizeof(Pixel));
-  assert( b != NULL);
+  Pixel *b = calloc(n, sizeof(Pixel));
+  assert( b != NULL );
   
   b[0] = MIN(a[0], a[1]);
   for(i = 1; i < n - 1; i++){
     b[i] = MIN(MIN(a[i - 1], a[i]), a[i + 1]);
   }
   b[n - 1] = MIN(a[n - 2], a[n - 1]);
-  return b;
+  for(i = 0; i < n; i++)
+    a[i] = b[i];
 }
 
 /*
@@ -475,55 +578,31 @@ void erosion(Image *im,
 
   int n = im->width;
   int height = im->height;
-  Pixel *a = im->data;
-
+  Pixel *a = im->data; 
+  Pixel *c, *d;
   int chunk = height/MAX_THREAD_NUM;
-  #pragma omp parallel num_threads(MAX_THREAD_NUM) default(none) firstprivate(s, chunk, n, height, direction) shared(im, a)
+  int row;
+  #pragma omp parallel num_threads(MAX_THREAD_NUM) default(none) private(row, c, d) firstprivate(s, chunk, n, height, direction) shared(im, a)
   {
-    Pixel *b, *c, *d, *result;
-    int pix, row;
     for( row = chunk * omp_get_thread_num(); row < chunk * (omp_get_thread_num() + 1); row++){      
-      b = calloc( (n + 1), sizeof(Pixel)); // buffer
-      c = calloc( (s - 1), sizeof(Pixel)); // left max array
-      d = calloc( (s - 1), sizeof(Pixel)); // right max array
-      assert(b != NULL);
-      assert(c != NULL);
-      assert(d != NULL);
-
-      /* Fill buffer with data from original array */
-      #pragma omp critical
-      { 
-        if( direction == HORIZONTAL ){
-          for(pix = 0; pix < n; pix++) {
-            b[pix] = a[row*n + pix];
-          }
-        }else{
-          for(pix = 0; pix < n; pix++) {
-            b[pix] = a[pix*n + row];
-          }
-        }
-      }
       if( s == 3){
-        result = erode3(b, n);
+        if( direction == HORIZONTAL ){
+          erode3Horizontal(&(a[row * n]), n); 
+        }else{
+          erode3Vertical(&(a[row]), n, height);
+        }
       }else{
-        result = erode(b, n, c, d, s);
+        c = calloc( (s - 1), sizeof(Pixel)); // left max array
+        assert(c != NULL);
+        d = calloc( (s - 1), sizeof(Pixel)); // right max array
+        assert(d != NULL);
+        if( direction == HORIZONTAL ){
+          erodeHorizontal(&(a[row * n]), n, c, d, s);
+        }else{
+          erodeVertical(&(a[row]), n, c, d, s, height);
+        }
         free(c);
         free(d);
-      }
-      free(b);
-      /* Write back buffer to original array */
-      #pragma omp critical
-      { 
-        if( direction == HORIZONTAL ){
-          for(pix = 0; pix < n; pix++) {
-            a[row*n + pix] = result[pix];
-          }
-        }else{
-          for(pix = 0; pix < n; pix++) {
-            a[pix*n + row] = result[pix];
-          }
-        }
-        free(result);
       }
     }
   }
@@ -543,7 +622,7 @@ void erosion(Image *im,
 void morphOpening(Image *im, Partition p){
   if( p.cubicFactor.width > 1 )
     erosion(im, p.cubicFactor.width, HORIZONTAL);
-  if( p.cubicFactor.height > 1 )  
+  if( p.cubicFactor.height > 1 )
     erosion(im, p.cubicFactor.height, VERTICAL);
   erodeNaive(im, p.sparseFactor);
   if( p.cubicFactor.width > 1)
@@ -589,7 +668,7 @@ void morphClosing(Image *im,  Partition p){
 void grayscaleToBinary(Image *im, int threshold){
   unsigned int i = 0;
   for(i = 0; i < im->width * im->height * im->channels; i++)  
-  	im->data[i] = (im->data[i] < threshold ) ? MIN_PIX : MAX_PIX;
+    im->data[i] = (im->data[i] < threshold ) ? MIN_PIX : MAX_PIX;
 }
 
 /*
@@ -630,7 +709,7 @@ void imageUnion(Image* ims, int len){
   unsigned int size = ims[0].width * ims[0].height;
   for(i = 1; i < len; i++){
     for(pix = 0; pix < size; pix++) 
-    	ims[0].data[pix] = MAX(ims[0].data[pix], ims[i].data[pix]);
+      ims[0].data[pix] = MAX(ims[0].data[pix], ims[i].data[pix]);
   }
 }
 
@@ -649,7 +728,7 @@ void imageBinaryUnion(Image* im1, Image *im2){
   unsigned int pix;
   unsigned int size = im1->width * im1->height;
   for(pix = 0; pix < size; pix++) 
-  	im1->data[pix] = MAX(im1->data[pix], im2->data[pix]);
+    im1->data[pix] = MAX(im1->data[pix], im2->data[pix]);
 }
 
 /*
@@ -668,7 +747,7 @@ void imageIntersection(Image* ims, int len){
   unsigned int size = ims[0].width * ims[0].height;
   for(i = 1; i < len; i++){
     for(pix = 0; pix < size; pix++) 
-    	ims[0].data[pix] = MIN(ims[0].data[pix], ims[i].data[pix]);
+      ims[0].data[pix] = MIN(ims[0].data[pix], ims[i].data[pix]);
   }
 }
 
@@ -684,11 +763,11 @@ void imageIntersection(Image* ims, int len){
 
 void rgbToGrayscale(Image *im){
   unsigned int pixel;
-  Pixel *newData = calloc(im->width * im->height, sizeof(unsigned char));
+  Pixel *newData = calloc(im->width * im->height, sizeof(Pixel));
   for(pixel = 0; pixel < im->width * im->height * im->channels; pixel += 3){
     newData[pixel/3] = (int) (RGB_RED * im->data[pixel] 
-    													+ RGB_GREEN *im->data[pixel + 1] 
-    													+ RGB_BLUE * im->data[pixel + 2]);
+                              + RGB_GREEN *im->data[pixel + 1] 
+                              + RGB_BLUE * im->data[pixel + 2]);
   }
   free(im->data);
   im->channels = 1;
@@ -710,8 +789,8 @@ void rgbaToGrayscale(Image *im){
   Pixel *newData = calloc(im->width * im->height, sizeof(Pixel));
   for(pixel = 0; pixel < im->width * im->height * im->channels; pixel += 4){
     newData[pixel/4] = (int) (RGB_RED * im->data[pixel] 
-    													+ RGB_GREEN *im->data[pixel + 1] 
-    													+ RGB_BLUE * im->data[pixel + 2]);
+                              + RGB_GREEN *im->data[pixel + 1] 
+                              + RGB_BLUE * im->data[pixel + 2]);
     if(im->data[pixel+3] == 0) newData[pixel/4] = MAX_PIX;
   }
   free(im->data);
@@ -749,8 +828,8 @@ Queue *newQueue(){
  */
 
 int queueSize(Queue *qp){
-	if(qp != NULL) return qp->size;
-	return -1;
+  if(qp != NULL) return qp->size;
+  return -1;
 }
 
 /*
@@ -764,7 +843,7 @@ int queueSize(Queue *qp){
  */
 
 void freeQueue(Queue *qp){
-	free(qp);
+  free(qp);
 }
 
 /*
@@ -925,17 +1004,17 @@ Partition *smallestMorphOpening(Image *SE){
   int yOffset, xOffset;
   //compute distance from top/bottom to middle, we know the SE is symmetrical
   for( int i = width/2; i < seSize/2; i += width){
-  	if( data[i] == MAX_PIX){
-  		yOffset = (width * height/2 - i ) / width;
-  		break;
-  	}
+    if( data[i] == MAX_PIX){
+      yOffset = (width * height/2 - i ) / width;
+      break;
+    }
   }
   // Compute distance from left/right to middle, we know the SE is symmetrical
   for( int i = width * height / 2 - width/2; i < seSize; i++){
-  	if( data[i] == MAX_PIX){
-  		xOffset = (width * height / 2) - i;
-  		break;
-  	}
+    if( data[i] == MAX_PIX){
+      xOffset = (width * height / 2) - i;
+      break;
+    }
   }
 
   //compute sparse factor 
@@ -1027,13 +1106,13 @@ void dilateNaive(Image *im, SparseFactor s){
   for(i = 0; i < size; i++ ){
     max = MIN_PIX;
     if( i - s.topOffset * width >= 0 )
-    	max = MAX(im->data[i - s.topOffset * width], max);
+      max = MAX(im->data[i - s.topOffset * width], max);
     if( i + s.bottomOffset * width < size )
       max = MAX(im->data[i + s.bottomOffset * width], max);
     if( i - s.leftOffset >= 0 )
-    	max = MAX(im->data[i - s.leftOffset], max);
+      max = MAX(im->data[i - s.leftOffset], max);
     if( i + s.rightOffset < size )
-    	max = MAX(im->data[i + s.rightOffset], max);
+      max = MAX(im->data[i + s.rightOffset], max);
     newData[i] = max;
   }
   free(im->data);
@@ -1054,7 +1133,7 @@ void dilateNaive(Image *im, SparseFactor s){
 void erodeNaive(Image *im, SparseFactor s){
   int size = im->width * im->height;
   int width = im->width;
-  Pixel *newData = calloc(im->width * im->height, sizeof(Pixel));
+  Pixel *newData = calloc(im->width * im->height + 2, sizeof(Pixel));
   assert(newData != NULL);
   int min, i;
   for(i = 0; i < size; i++ ){
