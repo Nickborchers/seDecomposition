@@ -11,7 +11,7 @@
 #define HORIZONTAL 0
 #define VERTICAL 1
 
-#define MAX_THREAD_NUM 1
+#define MAX_THREAD_NUM 4
 
 #define DEFAULT_STRIDE 0
 #define DEFAULT_CHANNELS 1
@@ -338,11 +338,18 @@ void dilateVertical(Pixel *a,
 
 void dilate3Horizontal(Pixel *a, int n){
   int i;
-  a[0] = MIN(a[0], a[1]);
+  Pixel *b = calloc(n, sizeof(Pixel));
+  assert( b != NULL );
+
+  b[0] = MIN(a[0], a[1]);
   for(i = 1; i < n - 1; i++){
-    a[i] = MIN(MIN(a[i - 1], a[i]), a[i + 1]);
+    b[i] = MIN(MIN(a[i - 1], a[i]), a[i + 1]);
   }
-  a[n - 1] = MIN(a[n - 2], a[n - 1]);
+  b[n - 1] = MIN(a[n - 2], a[n - 1]);
+
+  for(i = 0; i < n; i++)
+    a[i] = b[i];
+  free(b);
 }
 
 /*
@@ -359,12 +366,17 @@ void dilate3Horizontal(Pixel *a, int n){
 
 void dilate3Vertical(Pixel *a, int n, int height){
   int i;
+  Pixel *b = calloc(n, sizeof(Pixel));
+  assert( b != NULL );
 
-  a[0] = MIN(a[0], a[n]);
+  b[0] = MIN(a[0], a[n]);
   for(i = 1; i < n - 1; i++){
-    a[i] = MIN(MIN(a[(i - 1) * n], a[i * n]), a[(i + 1) * n]);
+    b[i] = MIN(MIN(a[(i - 1) * n], a[i * n]), a[(i + 1) * n]);
   }
-  a[(n - 1) * n] = MIN(a[(n - 2) * n], a[(n - 1) * n]);
+  b[n - 1] = MIN(a[(n - 2) * n], a[(n - 1) * n]);
+  for(i = 0; i < n; i++)
+    a[i * n] = b[i];
+  free(b);
 }
 
 /*
@@ -386,32 +398,30 @@ void dilation(Image *im,
   int height = im->height;
   Pixel *a = im->data;
   int row;
-  int chunk = height/MAX_THREAD_NUM;
-  #pragma omp parallel num_threads(MAX_THREAD_NUM) default(none) private(row) firstprivate(s, chunk, n, height, direction) shared(im, a)
+  int chunk = height / MAX_THREAD_NUM;
+  Pixel *c, *d;
+  #pragma omp parallel num_threads(MAX_THREAD_NUM) default(none) private(row, c, d) firstprivate(s, chunk, n, height, direction) shared(im, a)
   {
-    Pixel *c, *d;
     for( row = chunk * omp_get_thread_num(); row < chunk * (omp_get_thread_num() + 1); row++){      
-      c = malloc( (s - 1) * sizeof(Pixel)); // left max array
-      assert(c != NULL);
-      d = malloc( (s - 1) * sizeof(Pixel)); // right max array
-      assert(d != NULL);
-
-      if( s == 3 ){
+      if( s == 3){
         if( direction == HORIZONTAL ){
           dilate3Horizontal(&(a[row * n]), n);
         }else{
           dilate3Vertical(&(a[row]), n, height);
         }
-      } else {
-        if( direction == HORIZONTAL){
+      }else{
+        c = calloc( (s - 1), sizeof(Pixel)); // left max array
+        assert(c != NULL);
+        d = calloc( (s - 1), sizeof(Pixel)); // right max array
+        assert(d != NULL);
+        if( direction == HORIZONTAL ){
           dilateHorizontal(&(a[row * n]), n, c, d, s);
         }else{
           dilateVertical(&(a[row]), n, c, d, s, height);
         }
+        free(c);
+        free(d);
       }
-
-      free(c);
-      free(d);
     }
   }
 }
@@ -514,11 +524,15 @@ void erodeVertical(Pixel *a,
 
 void erode3Vertical(Pixel *a, int n, int height){
   int i;
-  a[0] = MIN(a[0], a[n]);
+  Pixel *b = calloc(n, sizeof(Pixel));
+  assert( b != NULL );
+  b[0] = MIN(a[0], a[n]);
   for(i = 1; i < n - 1; i++){
-    a[i * n] = MIN(MIN(a[(i - 1) * n], a[i * n]), a[(i + 1) * n]);
+    b[i] = MIN(MIN(a[(i - 1) * n], a[i * n]), a[(i + 1) * n]);
   }
-  a[n - 1] = MIN(a[(n - 2) * n], a[(n - 1) * n]);
+  b[n - 1] = MIN(a[(n - 2) * n], a[(n - 1) * n]);
+  for(i = 0; i < n; i++)
+    a[i * n] = b[i];
 }
 
 
@@ -535,11 +549,16 @@ void erode3Vertical(Pixel *a, int n, int height){
 
 void erode3Horizontal(Pixel *a, int n){
   int i;
-  a[0] = MIN(a[0], a[1]);
+  Pixel *b = calloc(n, sizeof(Pixel));
+  assert( b != NULL );
+  
+  b[0] = MIN(a[0], a[1]);
   for(i = 1; i < n - 1; i++){
-    a[i] = MIN(MIN(a[i - 1], a[i]), a[i + 1]);
+    b[i] = MIN(MIN(a[i - 1], a[i]), a[i + 1]);
   }
-  a[n - 1] = MIN(a[n - 2], a[n - 1]);
+  b[n - 1] = MIN(a[n - 2], a[n - 1]);
+  for(i = 0; i < n; i++)
+    a[i] = b[i];
 }
 
 /*
@@ -559,17 +578,16 @@ void erosion(Image *im,
 
   int n = im->width;
   int height = im->height;
-  Pixel *a = im->data;
-
+  Pixel *a = im->data; 
+  Pixel *c, *d;
   int chunk = height/MAX_THREAD_NUM;
-  #pragma omp parallel num_threads(MAX_THREAD_NUM) default(none) firstprivate(s, chunk, n, height, direction) shared(im, a)
+  int row;
+  #pragma omp parallel num_threads(MAX_THREAD_NUM) default(none) private(row, c, d) firstprivate(s, chunk, n, height, direction) shared(im, a)
   {
-    Pixel *c, *d;
-    int row;
     for( row = chunk * omp_get_thread_num(); row < chunk * (omp_get_thread_num() + 1); row++){      
       if( s == 3){
         if( direction == HORIZONTAL ){
-          erode3Horizontal(&(a[row * n]), n);
+          erode3Horizontal(&(a[row * n]), n); 
         }else{
           erode3Vertical(&(a[row]), n, height);
         }
@@ -604,13 +622,13 @@ void erosion(Image *im,
 void morphOpening(Image *im, Partition p){
   if( p.cubicFactor.width > 1 )
     erosion(im, p.cubicFactor.width, HORIZONTAL);
-  if( p.cubicFactor.height > 1 )  
-    // erosion(im, p.cubicFactor.height, VERTICAL);
+  if( p.cubicFactor.height > 1 )
+    erosion(im, p.cubicFactor.height, VERTICAL);
   erodeNaive(im, p.sparseFactor);
   if( p.cubicFactor.width > 1)
     dilation(im, p.cubicFactor.width, HORIZONTAL);
   if( p.cubicFactor.height > 1)
-    // dilation(im, p.cubicFactor.height, VERTICAL);
+    dilation(im, p.cubicFactor.height, VERTICAL);
   dilateNaive(im, p.sparseFactor);
 }
 
@@ -630,12 +648,12 @@ void morphClosing(Image *im,  Partition p){
     dilation(im, p.cubicFactor.width, HORIZONTAL);
   if( p.cubicFactor.height > 1 )  
   dilation(im, p.cubicFactor.height, VERTICAL);
-  // dilateNaive(im, p.sparseFactor);
+  dilateNaive(im, p.sparseFactor);
   if( p.cubicFactor.width > 1 )
     erosion(im, p.cubicFactor.width, HORIZONTAL);
   if( p.cubicFactor.height > 1 )
     erosion(im, p.cubicFactor.height, VERTICAL);
-  // erodeNaive(im, p.sparseFactor);
+  erodeNaive(im, p.sparseFactor);
 }
 
 /*

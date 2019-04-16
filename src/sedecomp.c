@@ -29,7 +29,6 @@ int main(int argc, char *argv[]){
   char *name = argv[1];
 
   Image *opening = readImage(name);
-  Image *closing = readImage(name);
   Image *CSE;
   Partition *p;
   Queue *qp = newQueue();
